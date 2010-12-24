@@ -112,7 +112,7 @@ task testJar(type: Jar, description: 'Package up the Grails testing jar') {
 task docsJar(type: Jar, dependsOn: docGeneratingFilesJar, description: 'Package up files used for generating documentation.') {
     appendix = "docs"
     metaInf handlersAndSchemasMetaInf
-    with mainClassesIncludeSpec("grails/doc/**", "**/groovy/grails/documentation/**")
+    with mainClassesIncludeSpec("radeox_messages*.properties", "grails/doc/**", "**/groovy/grails/documentation/**")
     from docGeneratingFilesJar.archivePath
     osgify = true
     mavenArtifact = true
