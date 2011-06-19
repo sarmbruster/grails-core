@@ -1,23 +1,41 @@
 package org.codehaus.groovy.grails.plugins.web.taglib
 
 import grails.artefact.Artefact
+import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.io.support.GrailsResourceUtils
+import org.codehaus.groovy.grails.web.taglib.exceptions.GrailsTagException
 
 @Artefact("TagLibrary")
 class ScaffoldingTagLib {
 	
+	GrailsApplication grailsApplication
     def groovyPagesTemplateEngine
 
 	Closure scaffoldInput = { attrs ->
 		if (!attrs.bean) throwTagError("Tag [scaffoldInput] is missing required attribute [bean]")
 		if (!attrs.property) throwTagError("Tag [scaffoldInput] is missing required attribute [property]")
 		
-        def uri = grailsAttributes.getTemplateUri(attrs.property, request)
-        def template = groovyPagesTemplateEngine.createTemplateForUri([uri] as String[])
-
-		if (template) {
-			out << render(template: attrs.property, bean: attrs.bean)
+		def bean = attrs.bean
+		def property = attrs.property
+		def value = bean."$property"
+		def model = [property: property, value: value]
+		
+		def type = getPropertyType(bean, property)
+		def template = grailsApplication.config.scaffolding.template.default[type]
+		if (!template) {
+			// attempt to use a template in the controller's view directory
+			template = property
+		}
+	
+		try {
+			out << render(template: property, bean: bean, model: model)
+		} catch (GrailsTagException e) {
+			out << textField(name: property, value: value)
 		}
 	}
 	
+	private Class getPropertyType(Object bean, String property) {
+		def dc = grailsApplication.getArtefact("Domain", bean.getClass().simpleName)
+		dc.getPersistentProperty(property).type
+	}
 }
