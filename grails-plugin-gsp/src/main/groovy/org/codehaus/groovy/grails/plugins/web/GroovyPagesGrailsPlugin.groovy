@@ -66,6 +66,7 @@ class GroovyPagesGrailsPlugin {
         RenderTagLib,
         ValidationTagLib,
         PluginTagLib,
+		ScaffoldingTagLib,
         SitemeshTagLib,
         JavascriptLibraryFilters
     ]
