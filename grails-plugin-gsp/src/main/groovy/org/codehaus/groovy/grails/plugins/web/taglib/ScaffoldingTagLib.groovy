@@ -21,13 +21,10 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
 		def model = [property: property, value: value]
 		
 		def type = getPropertyType(bean, property)
-        println "In tag: ${grailsApplication.config}"
 		def template = grailsApplication.config.scaffolding.template.default[type.name]
-        println "template from config: $template"
 		if (!template) {
             // attempt to use a template in the controller's view directory
             template = property
-            println "template from property name: $template"
         }
 	
 		try {

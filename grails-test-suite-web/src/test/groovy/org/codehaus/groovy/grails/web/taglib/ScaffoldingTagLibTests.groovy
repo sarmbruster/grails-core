@@ -33,6 +33,13 @@ class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
         personInstance = domain.clazz.newInstance(name: "Bartholomew Roberts", password: "BlackBart", gender: "Male", dateOfBirth: new Date(-218, 4, 17))
     }
 
+    @Override
+    void tearDown() {
+        super.tearDown()
+
+        appCtx.groovyPagesTemplateEngine.clearPageCache()
+    }
+
     void testBeanAttributeIsRequired() {
         shouldFail(GrailsTagException) {
             applyTemplate('<g:scaffoldInput property="name"/>')
@@ -56,18 +63,21 @@ class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
     // TODO: test for template provided by a plugin
 
     void testResolvesConfiguredTemplateForDomainClassProperty() {
+        resourceLoader.registerMockResource("/scaffolding/_gender.gsp", '<g:radioGroup name="${property}" values="[\'Male\', \'Female\']" value="${value}">${it.label}${it.radio}</g:radioGroup>')
+        ga.config.scaffolding.template."Person.gender" = "/scaffolding/gender"
 
+        def output = applyTemplate('<g:scaffoldInput bean="${personInstance}" property="gender"/>', [personInstance: personInstance])
+
+        assert output == '<label>Male</label><input type="radio" name="gender" value="Male" checked/><label>Female</label><input type="radio" name="gender" value="Female"/>'
     }
 
     void testResolvesConfiguredTemplateForPropertyType() {
-        resourceLoader.registerMockResource("/templates/_date.gsp", '<input type="date" name="${property}" value="${formatDate(date: value, format: \'yyyy-MM-dd\')}">')
+        resourceLoader.registerMockResource("/scaffolding/_date.gsp", '<input type="date" name="${property}" value="${formatDate(date: value, format: \'yyyy-MM-dd\')}">')
+        ga.config.scaffolding.template.default."java.util.Date" = "/scaffolding/date"
 
-        withConfig('scaffolding.template.default."java.util.Date" = "/templates/date"') {
-            println "In test: ${ga.config}"
-            def output = applyTemplate('<g:scaffoldInput bean="${personInstance}" property="dateOfBirth"/>', [personInstance: personInstance])
+        def output = applyTemplate('<g:scaffoldInput bean="${personInstance}" property="dateOfBirth"/>', [personInstance: personInstance])
 
-            assert output == '<input type="date" name="dateOfBirth" value="1682-05-17">'
-        }
+        assert output == '<input type="date" name="dateOfBirth" value="1682-05-17">'
     }
 
     void testUsesDefaultRendering() {
