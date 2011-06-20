@@ -16,12 +16,19 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
 		if (!attrs.property) throwTagError("Tag [scaffoldInput] is missing required attribute [property]")
 		
 		def bean = attrs.bean
+		def beanClass = bean.getClass()
 		def property = attrs.property
 		def value = bean."$property"
 		def model = [property: property, value: value]
 		
 		def type = getPropertyType(bean, property)
-		def template = grailsApplication.config.scaffolding.template.default[type.name]
+		
+		// attempt to get configured template for domain class property
+		def template = grailsApplication.config.scaffolding.template[beanClass.name][property]
+		if (!template) {
+			// attempt to get configured template for property type
+			template = grailsApplication.config.scaffolding.template.default[type.name]
+		}
 		if (!template) {
             // attempt to use a template in the controller's view directory
             template = property

@@ -63,12 +63,13 @@ class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
     // TODO: test for template provided by a plugin
 
     void testResolvesConfiguredTemplateForDomainClassProperty() {
-        resourceLoader.registerMockResource("/scaffolding/_gender.gsp", '<g:radioGroup name="${property}" values="[\'Male\', \'Female\']" value="${value}">${it.label}${it.radio}</g:radioGroup>')
-        ga.config.scaffolding.template."Person.gender" = "/scaffolding/gender"
+        resourceLoader.registerMockResource("/scaffolding/_gender.gsp", '<g:radioGroup name="${property}" values="[\'Male\', \'Female\']" labels="[\'Male\', \'Female\']" value="${value}"><label>${it.label} ${it.radio}</label></g:radioGroup>')
+        ga.config.scaffolding.template.Person.gender = "/scaffolding/gender"
 
         def output = applyTemplate('<g:scaffoldInput bean="${personInstance}" property="gender"/>', [personInstance: personInstance])
 
-        assert output == '<label>Male</label><input type="radio" name="gender" value="Male" checked/><label>Female</label><input type="radio" name="gender" value="Female"/>'
+        assert output =~ /<label>Male <input type="radio" name="gender" checked="checked" value="Male" \/><\/label>/
+		assert output =~ /<label>Female <input type="radio" name="gender" value="Female" \/><\/label>/
     }
 
     void testResolvesConfiguredTemplateForPropertyType() {
