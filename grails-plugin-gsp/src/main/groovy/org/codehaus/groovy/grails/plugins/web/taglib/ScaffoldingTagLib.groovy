@@ -31,17 +31,16 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
 		// TODO: recursive resolution for embedded types
 		
 		def templateResolveOrder = []
-        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views', controllerName, property)
-        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views/fields', "${beanClass.name}.$property".toString())
-        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views/fields', type.name)
-        templateResolveOrder << '/grails-app/views/fields/default'
+		templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views', controllerName, property)
+		templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views/fields', "${beanClass.name}.$property".toString())
+		templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views/fields', type.name)
+		templateResolveOrder << '/grails-app/views/fields/default'
 
 		// TODO: this is doing the entire resolution twice, we need to make some of the internal functionality of GroovyPagesTemplateEngine and RenderTagLib more accessible so that it can be shared by this code
 		def template = templateResolveOrder.find {
 			def gspPath = grailsAttributes.getTemplateUri(it, request)
 			groovyPagesTemplateEngine.createTemplateForUri([gspPath] as String[]) != null
 		}
-		println "got template: $template from $templateResolveOrder"
 		out << render(template: template)
 	}
 	
