@@ -60,8 +60,6 @@ class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
         assert output == '<input type="password" name="password" value="BlackBart">'
     }
 
-    // TODO: test for template provided by a plugin
-
     void testResolvesConfiguredTemplateForDomainClassProperty() {
         resourceLoader.registerMockResource("/scaffolding/_gender.gsp", '<g:radioGroup name="${property}" values="[\'Male\', \'Female\']" labels="[\'Male\', \'Female\']" value="${value}"><label>${it.label} ${it.radio}</label></g:radioGroup>')
         ga.config.scaffolding.template.Person.gender = "/scaffolding/gender"
@@ -86,5 +84,18 @@ class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
 
         assert output == '<input type="text" name="name" value="Bartholomew Roberts" id="name" />'
     }
+
+	void testRenderingPrecedence() {
+        resourceLoader.registerMockResource("/scaffolding/_string.gsp", 'TEMPLATE FOR PROPERTY TYPE')
+        ga.config.scaffolding.template.default."java.lang.String" = "/scaffolding/string"
+        assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name"/>', [personInstance: personInstance]) == "TEMPLATE FOR PROPERTY TYPE"
+
+        resourceLoader.registerMockResource("/person/_name.gsp", 'TEMPLATE BY CONVENTION')
+        assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name"/>', [personInstance: personInstance]) == "TEMPLATE BY CONVENTION"
+
+        resourceLoader.registerMockResource("/scaffolding/_name.gsp", 'TEMPLATE FOR DOMAIN PROPERTY')
+        ga.config.scaffolding.template.Person.name = "/scaffolding/name"
+        assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name"/>', [personInstance: personInstance]) == "TEMPLATE FOR DOMAIN PROPERTY"
+	}
 
 }
