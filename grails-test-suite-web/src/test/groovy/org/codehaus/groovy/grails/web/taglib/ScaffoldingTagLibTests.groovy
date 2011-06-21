@@ -52,50 +52,34 @@ class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
         }
     }
 
+    void testUsesDefaultTemplate() {
+		resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", 'DEFAULT FIELD TEMPLATE')
+
+        assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name"/>', [personInstance: personInstance]) == 'DEFAULT FIELD TEMPLATE'
+    }
+
+    void testResolvesTemplateForPropertyType() {
+		resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", 'DEFAULT FIELD TEMPLATE')
+        resourceLoader.registerMockResource("/grails-app/views/fields/_java.lang.String.gsp", 'PROPERTY TYPE TEMPLATE')
+
+        assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name"/>', [personInstance: personInstance]) == 'PROPERTY TYPE TEMPLATE'
+    }
+
+    void testResolvesTemplateForDomainClassProperty() {
+		resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", 'DEFAULT FIELD TEMPLATE')
+        resourceLoader.registerMockResource("/grails-app/views/fields/_java.lang.String.gsp", 'PROPERTY TYPE TEMPLATE')
+        resourceLoader.registerMockResource("/grails-app/views/fields/_Person.name.gsp", 'CLASS AND PROPERTY TEMPLATE')
+
+        assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name"/>', [personInstance: personInstance]) == "CLASS AND PROPERTY TEMPLATE"
+    }
+
     void testResolvesTemplateFromControllerViewsDirectory() {
-        resourceLoader.registerMockResource("/person/_password.gsp", '<input type="password" name="${property}" value="${value}">')
+		resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", 'DEFAULT FIELD TEMPLATE')
+        resourceLoader.registerMockResource("/grails-app/views/fields/_java.lang.String.gsp", 'PROPERTY TYPE TEMPLATE')
+        resourceLoader.registerMockResource("/grails-app/views/fields/_Person.name.gsp", 'CLASS AND PROPERTY TEMPLATE')
+        resourceLoader.registerMockResource("/grails-app/views/person/_name.gsp", 'CONTROLLER FIELD TEMPLATE')
 
-        def output = applyTemplate('<g:scaffoldInput bean="${personInstance}" property="password"/>', [personInstance: personInstance])
-
-        assert output == '<input type="password" name="password" value="BlackBart">'
+        assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name"/>', [personInstance: personInstance]) == 'CONTROLLER FIELD TEMPLATE'
     }
-
-    void testResolvesConfiguredTemplateForDomainClassProperty() {
-        resourceLoader.registerMockResource("/scaffolding/_gender.gsp", '<g:radioGroup name="${property}" values="[\'Male\', \'Female\']" labels="[\'Male\', \'Female\']" value="${value}"><label>${it.label} ${it.radio}</label></g:radioGroup>')
-        ga.config.scaffolding.template.Person.gender = "/scaffolding/gender"
-
-        def output = applyTemplate('<g:scaffoldInput bean="${personInstance}" property="gender"/>', [personInstance: personInstance])
-
-        assert output =~ /<label>Male <input type="radio" name="gender" checked="checked" value="Male" \/><\/label>/
-		assert output =~ /<label>Female <input type="radio" name="gender" value="Female" \/><\/label>/
-    }
-
-    void testResolvesConfiguredTemplateForPropertyType() {
-        resourceLoader.registerMockResource("/scaffolding/_date.gsp", '<input type="date" name="${property}" value="${formatDate(date: value, format: \'yyyy-MM-dd\')}">')
-        ga.config.scaffolding.template.default."java.util.Date" = "/scaffolding/date"
-
-        def output = applyTemplate('<g:scaffoldInput bean="${personInstance}" property="dateOfBirth"/>', [personInstance: personInstance])
-
-        assert output == '<input type="date" name="dateOfBirth" value="1682-05-17">'
-    }
-
-    void testUsesDefaultRendering() {
-        def output = applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name"/>', [personInstance: personInstance])
-
-        assert output == '<input type="text" name="name" value="Bartholomew Roberts" id="name" />'
-    }
-
-	void testRenderingPrecedence() {
-        resourceLoader.registerMockResource("/scaffolding/_string.gsp", 'TEMPLATE FOR PROPERTY TYPE')
-        ga.config.scaffolding.template.default."java.lang.String" = "/scaffolding/string"
-        assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name"/>', [personInstance: personInstance]) == "TEMPLATE FOR PROPERTY TYPE"
-
-        resourceLoader.registerMockResource("/person/_name.gsp", 'TEMPLATE BY CONVENTION')
-        assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name"/>', [personInstance: personInstance]) == "TEMPLATE BY CONVENTION"
-
-        resourceLoader.registerMockResource("/scaffolding/_name.gsp", 'TEMPLATE FOR DOMAIN PROPERTY')
-        ga.config.scaffolding.template.Person.name = "/scaffolding/name"
-        assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name"/>', [personInstance: personInstance]) == "TEMPLATE FOR DOMAIN PROPERTY"
-	}
 
 }
