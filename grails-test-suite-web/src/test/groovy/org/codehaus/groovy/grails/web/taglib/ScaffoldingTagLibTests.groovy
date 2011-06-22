@@ -2,6 +2,8 @@ package org.codehaus.groovy.grails.web.taglib
 
 import org.codehaus.groovy.grails.support.MockStringResourceLoader
 import org.codehaus.groovy.grails.web.taglib.exceptions.GrailsTagException
+import org.springframework.web.servlet.support.RequestContextUtils
+import org.codehaus.groovy.grails.plugins.web.taglib.RenderTagLib
 
 class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
 
@@ -31,6 +33,13 @@ class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
 
         def domain = ga.getDomainClass("Person")
         personInstance = domain.clazz.newInstance(name: "Bartholomew Roberts", password: "BlackBart", gender: "Male", dateOfBirth: new Date(-218, 4, 17))
+    }
+
+    @Override
+    void tearDown() {
+        super.tearDown()
+
+        RenderTagLib.TEMPLATE_CACHE.clear()
     }
 
     void testBeanAttributeIsRequired() {
@@ -73,6 +82,21 @@ class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
         resourceLoader.registerMockResource("/grails-app/views/person/_name.gsp", 'CONTROLLER FIELD TEMPLATE')
 
         assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name"/>', [personInstance: personInstance]) == 'CONTROLLER FIELD TEMPLATE'
+    }
+
+    void testLabelIsResolvedByConventionAndPassedToTemplate() {
+        resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", '<label>${label}</label>')
+
+        messageSource.addMessage("Person.name.label", RequestContextUtils.getLocale(request), "Name of person")
+
+        assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name"/>', [personInstance: personInstance]) == "<label>Name of person</label>"
+    }
+
+    void testLabelIsDefaultedToNaturalPropertyName() {
+        resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", '<label>${label}</label>')
+
+        assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name"/>', [personInstance: personInstance]) == "<label>Name</label>"
+        assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="dateOfBirth"/>', [personInstance: personInstance]) == "<label>Date Of Birth</label>"
     }
 
 }

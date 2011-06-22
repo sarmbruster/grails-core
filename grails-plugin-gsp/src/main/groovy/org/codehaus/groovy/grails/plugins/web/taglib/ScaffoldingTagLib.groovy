@@ -5,6 +5,8 @@ import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.io.support.GrailsResourceUtils
 import org.codehaus.groovy.grails.plugins.support.aware.GrailsApplicationAware
 import org.codehaus.groovy.grails.web.taglib.exceptions.GrailsTagException
+import org.springframework.datastore.mapping.model.PersistentProperty
+import org.codehaus.groovy.grails.commons.GrailsDomainClassProperty
 
 @Artefact("TagLibrary")
 class ScaffoldingTagLib implements GrailsApplicationAware {
@@ -19,10 +21,11 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
 		def bean = attrs.bean
 		def beanClass = bean.getClass()
 		def property = attrs.property
-		def type = getPropertyType(bean, property)
+        def persistentProperty = getPersistentProperty(bean, property)
+		def type = persistentProperty.type
 		def value = bean."$property"
-		
-		// order of priority for template resolution
+        
+        // order of priority for template resolution
 		// 1: grails-app/views/controller/_<property>.gsp
 		// 2: grails-app/views/fields/_<class>.<property>.gsp
 		// 3: grails-app/views/fields/_<type>.gsp
@@ -41,11 +44,15 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
 			def gspPath = grailsAttributes.getTemplateUri(it, request)
 			groovyPagesTemplateEngine.createTemplateForUri([gspPath] as String[]) != null
 		}
-		out << render(template: template)
+
+        def model = [:]
+        model.label = message(code: "${beanClass.name}.${property}.label", default: persistentProperty.naturalName)
+
+		out << render(template: template, model: model)
 	}
 	
-	private Class getPropertyType(Object bean, String property) {
+	private GrailsDomainClassProperty getPersistentProperty(Object bean, String property) {
 		def dc = grailsApplication.getArtefact("Domain", bean.getClass().simpleName)
-		dc.getPersistentProperty(property).type
+		dc.getPersistentProperty(property)
 	}
 }
