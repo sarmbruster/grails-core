@@ -17,7 +17,7 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
         if (!attrs.bean) throwTagError("Tag [scaffoldInput] is missing required attribute [bean]")
         if (!attrs.property) throwTagError("Tag [scaffoldInput] is missing required attribute [property]")
 
-        def bean = attrs.bean
+        def bean = resolveBean(attrs)
         def beanClass = bean.getClass()
         def domainClass = getDomainClass(beanClass)
         def property = attrs.property
@@ -53,6 +53,14 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
         model.errors = bean.errors.getFieldErrors(property).collect { message(error: it) }
 
         out << render(template: template, model: model)
+    }
+
+    private Object resolveBean(Map attrs) {
+        if (attrs.bean instanceof String) {
+            pageScope.variables[attrs.bean]
+        } else {
+            attrs.bean
+        }
     }
 
     private String resolveLabelText(GrailsDomainClassProperty property, Map attrs) {
