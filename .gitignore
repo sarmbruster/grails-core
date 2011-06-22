@@ -26,7 +26,8 @@ target
 /*/build/*
 /*/.settings/*
 /*/out/*
-/*/*.iml
+*.iml
+*.iws
 /eclipse-build
 
 /.idea/
