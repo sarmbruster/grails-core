@@ -2,6 +2,7 @@ package org.codehaus.groovy.grails.plugins.web.taglib
 
 import grails.artefact.Artefact
 import org.codehaus.groovy.grails.commons.GrailsApplication
+import org.codehaus.groovy.grails.commons.GrailsDomainClass
 import org.codehaus.groovy.grails.commons.GrailsDomainClassProperty
 import org.codehaus.groovy.grails.io.support.GrailsResourceUtils
 import org.codehaus.groovy.grails.plugins.support.aware.GrailsApplicationAware
@@ -18,8 +19,9 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
 
         def bean = attrs.bean
         def beanClass = bean.getClass()
+        def domainClass = getDomainClass(beanClass)
         def property = attrs.property
-        def persistentProperty = getPersistentProperty(bean, property)
+        def persistentProperty = domainClass.getPersistentProperty(property)
         def type = persistentProperty.type
 
         // order of priority for template resolution
@@ -43,13 +45,16 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
         }
 
         def model = [:]
+        model.bean = bean
+        model.property = property
         model.label = resolveLabelText(persistentProperty, attrs)
         model.value = attrs.value ?: bean."$property" ?: attrs.default
+        model.constraints = domainClass.constrainedProperties[property]
 
         out << render(template: template, model: model)
     }
 
-    private def resolveLabelText(GrailsDomainClassProperty property, Map attrs) {
+    private String resolveLabelText(GrailsDomainClassProperty property, Map attrs) {
         def label = attrs.label
         if (!label && attrs.labelKey) {
             label = message(code: attrs.labelKey)
@@ -57,8 +62,7 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
         label ?: message(code: "${property.domainClass.name}.${property.name}.label", default: property.naturalName)
     }
 
-    private GrailsDomainClassProperty getPersistentProperty(Object bean, String property) {
-        def dc = grailsApplication.getArtefact("Domain", bean.getClass().simpleName)
-        dc.getPersistentProperty(property)
+    private GrailsDomainClass getDomainClass(Class beanClass) {
+        grailsApplication.getArtefact("Domain", beanClass.simpleName)
     }
 }

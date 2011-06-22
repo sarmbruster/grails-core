@@ -1,9 +1,9 @@
 package org.codehaus.groovy.grails.web.taglib
 
+import org.codehaus.groovy.grails.plugins.web.taglib.RenderTagLib
 import org.codehaus.groovy.grails.support.MockStringResourceLoader
 import org.codehaus.groovy.grails.web.taglib.exceptions.GrailsTagException
 import org.springframework.web.servlet.support.RequestContextUtils
-import org.codehaus.groovy.grails.plugins.web.taglib.RenderTagLib
 
 class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
 
@@ -82,6 +82,18 @@ class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
         resourceLoader.registerMockResource("/grails-app/views/person/_name.gsp", 'CONTROLLER FIELD TEMPLATE')
 
         assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name"/>', [personInstance: personInstance]) == 'CONTROLLER FIELD TEMPLATE'
+    }
+
+    void testBeanAndPropertyAttributesArePassedToTemplate() {
+        resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", '${bean.getClass().name}.${property}')
+
+        assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name"/>', [personInstance: personInstance]) == "Person.name"
+    }
+
+    void testConstraintsArePassedToTemplate() {
+        resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", 'nullable=${constraints.nullable}, blank=${constraints.blank}')
+
+        assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name"/>', [personInstance: personInstance]) == "nullable=false, blank=true"
     }
 
     void testLabelIsResolvedByConventionAndPassedToTemplate() {
