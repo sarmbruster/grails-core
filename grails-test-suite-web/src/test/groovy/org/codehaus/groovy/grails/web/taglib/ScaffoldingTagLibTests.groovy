@@ -147,4 +147,18 @@ class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
 
         assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name" default="A. N. Other"/>', [personInstance: personInstance]) == "Bartholomew Roberts"
     }
+
+    void testErrorsPassedToTemplateIsAnEmptyCollectionForValidBean() {
+        resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", '<g:each var="error" in="${errors}"><em>${error}</em></g:each>')
+
+        assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name"/>', [personInstance: personInstance]) == ""
+    }
+
+    void testErrorsPassedToTemplateIsAnCollectionOfStrings() {
+        resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", '<g:each var="error" in="${errors}"><em>${error}</em></g:each>')
+        personInstance.errors.rejectValue("name", "blank")
+        personInstance.errors.rejectValue("name", "nullable")
+
+        assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name"/>', [personInstance: personInstance]) == "<em>blank</em><em>nullable</em>"
+    }
 }

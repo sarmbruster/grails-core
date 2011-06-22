@@ -50,6 +50,7 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
         model.label = resolveLabelText(persistentProperty, attrs)
         model.value = attrs.value ?: bean."$property" ?: attrs.default
         model.constraints = domainClass.constrainedProperties[property]
+        model.errors = bean.errors.getFieldErrors(property).collect { message(error: it) }
 
         out << render(template: template, model: model)
     }
