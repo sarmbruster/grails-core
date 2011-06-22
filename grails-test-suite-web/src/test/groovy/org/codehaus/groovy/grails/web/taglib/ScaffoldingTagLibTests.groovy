@@ -33,13 +33,6 @@ class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
         personInstance = domain.clazz.newInstance(name: "Bartholomew Roberts", password: "BlackBart", gender: "Male", dateOfBirth: new Date(-218, 4, 17))
     }
 
-    @Override
-    void tearDown() {
-        super.tearDown()
-
-        appCtx.groovyPagesTemplateEngine.clearPageCache()
-    }
-
     void testBeanAttributeIsRequired() {
         shouldFail(GrailsTagException) {
             applyTemplate('<g:scaffoldInput property="name"/>')
