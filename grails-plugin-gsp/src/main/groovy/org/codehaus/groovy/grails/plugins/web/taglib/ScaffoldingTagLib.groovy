@@ -56,11 +56,7 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
     }
 
     private Object resolveBean(Map attrs) {
-        if (attrs.bean instanceof String) {
-            pageScope.variables[attrs.bean]
-        } else {
-            attrs.bean
-        }
+        pageScope.variables[attrs.bean] ?: attrs.bean
     }
 
     private String resolveLabelText(GrailsDomainClassProperty property, Map attrs) {
