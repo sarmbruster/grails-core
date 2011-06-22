@@ -111,4 +111,28 @@ class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
         assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name" labelKey="custom.name.label"/>', [personInstance: personInstance]) == "<label>Name of person</label>"
     }
 
+    void testValueIsDefaultedToPropertyValue() {
+        resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", '<g:formatDate date="${value}" format="yyyy-MM-dd"/>')
+
+        assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="dateOfBirth"/>', [personInstance: personInstance]) == "1682-05-17"
+    }
+
+    void testValueIsOverriddenByValueAttribute() {
+        resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", '${value}')
+
+        assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name" value="Black Bart"/>', [personInstance: personInstance]) == "Black Bart"
+    }
+
+    void testValueFallsBackToDefault() {
+        resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", '${value}')
+        personInstance.name = null
+
+        assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name" default="A. N. Other"/>', [personInstance: personInstance]) == "A. N. Other"
+    }
+
+    void testDefaultAttributeIsIgnoredIfPropertyHasNonNullValue() {
+        resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", '${value}')
+
+        assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name" default="A. N. Other"/>', [personInstance: personInstance]) == "Bartholomew Roberts"
+    }
 }

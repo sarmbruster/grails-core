@@ -21,7 +21,6 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
         def property = attrs.property
         def persistentProperty = getPersistentProperty(bean, property)
         def type = persistentProperty.type
-        def value = bean."$property"
 
         // order of priority for template resolution
         // 1: grails-app/views/controller/_<property>.gsp
@@ -45,6 +44,7 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
 
         def model = [:]
         model.label = resolveLabelText(persistentProperty, attrs)
+        model.value = attrs.value ?: bean."$property" ?: attrs.default
 
         out << render(template: template, model: model)
     }
