@@ -86,7 +86,6 @@ class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
 
     void testLabelIsResolvedByConventionAndPassedToTemplate() {
         resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", '<label>${label}</label>')
-
         messageSource.addMessage("Person.name.label", RequestContextUtils.getLocale(request), "Name of person")
 
         assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name"/>', [personInstance: personInstance]) == "<label>Name of person</label>"
@@ -97,6 +96,19 @@ class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
 
         assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name"/>', [personInstance: personInstance]) == "<label>Name</label>"
         assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="dateOfBirth"/>', [personInstance: personInstance]) == "<label>Date Of Birth</label>"
+    }
+
+    void testLabelCanBeOverriddenByLabelAttribute() {
+        resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", '<label>${label}</label>')
+
+        assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name" label="Name of person"/>', [personInstance: personInstance]) == "<label>Name of person</label>"
+    }
+
+    void testLabelCanBeOverriddenByLabelKeyAttribute() {
+        resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", '<label>${label}</label>')
+        messageSource.addMessage("custom.name.label", RequestContextUtils.getLocale(request), "Name of person")
+
+        assert applyTemplate('<g:scaffoldInput bean="${personInstance}" property="name" labelKey="custom.name.label"/>', [personInstance: personInstance]) == "<label>Name of person</label>"
     }
 
 }
