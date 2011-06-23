@@ -18,7 +18,14 @@ class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
 				String password
 				String gender
 				Date dateOfBirth
+                Address address
+                static embedded = ['address']
 			}
+            class Address {
+                String street
+                String city
+                String country
+            }
 		'''
     }
 
@@ -31,8 +38,11 @@ class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
 
         webRequest.controllerName = "person"
 
-        def domain = ga.getDomainClass("Person")
-        personInstance = domain.clazz.newInstance(name: "Bartholomew Roberts", password: "BlackBart", gender: "Male", dateOfBirth: new Date(-218, 4, 17))
+        def person = ga.getDomainClass("Person")
+        personInstance = person.clazz.newInstance(name: "Bart Simpson", password: "bartman", gender: "Male", dateOfBirth: new Date(87, 3, 19))
+
+        def address = ga.classLoader.loadClass("Address")
+        personInstance.address = address.newInstance(street: "94 Evergreen Terrace", city: "Springfield", country: "USA")
     }
 
     @Override
@@ -144,13 +154,13 @@ class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
     void testValueIsDefaultedToPropertyValue() {
         resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", '<g:formatDate date="${value}" format="yyyy-MM-dd"/>')
 
-        assert applyTemplate('<g:scaffoldInput bean="personInstance" property="dateOfBirth"/>', [personInstance: personInstance]) == "1682-05-17"
+        assert applyTemplate('<g:scaffoldInput bean="personInstance" property="dateOfBirth"/>', [personInstance: personInstance]) == "1987-04-19"
     }
 
     void testValueIsOverriddenByValueAttribute() {
         resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", '${value}')
 
-        assert applyTemplate('<g:scaffoldInput bean="personInstance" property="name" value="Black Bart"/>', [personInstance: personInstance]) == "Black Bart"
+        assert applyTemplate('<g:scaffoldInput bean="personInstance" property="name" value="Bartholomew J. Simpson"/>', [personInstance: personInstance]) == "Bartholomew J. Simpson"
     }
 
     void testValueFallsBackToDefault() {
@@ -163,7 +173,7 @@ class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
     void testDefaultAttributeIsIgnoredIfPropertyHasNonNullValue() {
         resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", '${value}')
 
-        assert applyTemplate('<g:scaffoldInput bean="personInstance" property="name" default="A. N. Other"/>', [personInstance: personInstance]) == "Bartholomew Roberts"
+        assert applyTemplate('<g:scaffoldInput bean="personInstance" property="name" default="A. N. Other"/>', [personInstance: personInstance]) == "Bart Simpson"
     }
 
     void testErrorsPassedToTemplateIsAnEmptyCollectionForValidBean() {
@@ -178,5 +188,18 @@ class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
         personInstance.errors.rejectValue("name", "nullable")
 
         assert applyTemplate('<g:scaffoldInput bean="personInstance" property="name"/>', [personInstance: personInstance]) == "<em>blank</em><em>nullable</em>"
+    }
+
+    void testRendersEmbeddedProperty() {
+        resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", 'bean=${bean.getClass().name}, property=${property}, value=${value}')
+
+        assert applyTemplate('<g:scaffoldInput bean="personInstance" property="address.city"/>', [personInstance: personInstance]) == "bean=Person, property=address.city, value=Springfield"
+    }
+
+    void testRendersEmbeddedPropertyWithErrors() {
+        resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", '<g:each var="error" in="${errors}"><em>${error}</em></g:each>')
+        personInstance.errors.rejectValue("address.city", "invalid")
+
+        assert applyTemplate('<g:scaffoldInput bean="personInstance" property="address.city"/>', [personInstance: personInstance]) == "<em>invalid</em>"
     }
 }
