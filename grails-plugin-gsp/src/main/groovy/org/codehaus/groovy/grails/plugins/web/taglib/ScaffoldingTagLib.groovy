@@ -7,6 +7,8 @@ import org.codehaus.groovy.grails.commons.GrailsDomainClassProperty
 import org.codehaus.groovy.grails.io.support.GrailsResourceUtils
 import org.codehaus.groovy.grails.plugins.support.aware.GrailsApplicationAware
 import org.springframework.datastore.mapping.model.PersistentProperty
+import org.springframework.beans.BeanWrapper
+import org.springframework.beans.PropertyAccessorFactory
 
 @Artefact("TagLibrary")
 class ScaffoldingTagLib implements GrailsApplicationAware {
@@ -21,8 +23,10 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
         def bean = resolveBean(attrs)
         def beanClass = bean.getClass()
         def domainClass = resolveDomainClass(beanClass)
-        def property = attrs.property
-        def persistentProperty = resolveProperty(domainClass, property)
+        def propertyName = attrs.property
+        def property = resolveProperty(bean, propertyName)
+        def persistentProperty = property.persistentProperty
+        def value = property.value
         def type = persistentProperty.type
 
         // order of priority for template resolution
@@ -34,8 +38,8 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
         // TODO: recursive resolution for embedded types
 
         def templateResolveOrder = []
-        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views', controllerName, property)
-        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views/fields', "${beanClass.name}.$property".toString())
+        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views', controllerName, propertyName)
+        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views/fields', "${beanClass.name}.$propertyName".toString())
         templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views/fields', type.name)
         templateResolveOrder << '/grails-app/views/fields/default'
 
@@ -47,11 +51,11 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
 
         def model = [:]
         model.bean = bean
-        model.property = property
+        model.property = propertyName
         model.label = resolveLabelText(persistentProperty, attrs)
-        model.value = attrs.value ?: resolvePropertyValue(bean, property) ?: attrs.default
-        model.constraints = domainClass.constrainedProperties[property]
-        model.errors = bean.errors.getFieldErrors(property).collect { message(error: it) }
+        model.value = attrs.value ?: value ?: attrs.default
+        model.constraints = domainClass.constrainedProperties[propertyName]
+        model.errors = bean.errors.getFieldErrors(propertyName).collect { message(error: it) }
 
         out << render(template: template, model: model)
     }
@@ -60,26 +64,29 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
         pageScope.variables[attrs.bean] ?: attrs.bean
     }
 
+    private GrailsDomainClass resolveDomainClass(bean) {
+        resolveDomainClass(bean.getClass())
+    }
+
     private GrailsDomainClass resolveDomainClass(Class beanClass) {
         grailsApplication.getArtefact("Domain", beanClass.simpleName)
     }
 
-    private GrailsDomainClassProperty resolveProperty(GrailsDomainClass domainClass, String property) {
+    private Map<String, Object> resolveProperty(bean, String property) {
+        def domainClass = resolveDomainClass(bean.getClass())
         def path = property.tokenize(".")
-        resolvePropertyFromPathComponents(domainClass, path)
+        resolvePropertyFromPathComponents(PropertyAccessorFactory.forBeanPropertyAccess(bean), domainClass, path)
     }
 
-    private GrailsDomainClassProperty resolvePropertyFromPathComponents(GrailsDomainClass domainClass, List<String> path) {
-        def persistentProperty = domainClass.getPersistentProperty(path.remove(0))
+    private Map<String, Object> resolvePropertyFromPathComponents(BeanWrapper bean, GrailsDomainClass domainClass, List<String> path) {
+        def propertyName = path.remove(0)
+        def persistentProperty = domainClass.getPersistentProperty(propertyName)
+        def value = bean.getPropertyValue(propertyName)
         if (path.empty) {
-            persistentProperty
+            [persistentProperty: persistentProperty, value: value]
         } else {
-            resolvePropertyFromPathComponents(persistentProperty.component, path)
+            resolvePropertyFromPathComponents(PropertyAccessorFactory.forBeanPropertyAccess(value), persistentProperty.component, path)
         }
-    }
-
-    private resolvePropertyValue(bean, String property) {
-        bean."$property"
     }
 
     private String resolveLabelText(GrailsDomainClassProperty property, Map attrs) {
