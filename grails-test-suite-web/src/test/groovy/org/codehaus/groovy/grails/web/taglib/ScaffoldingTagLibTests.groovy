@@ -25,6 +25,9 @@ class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
                 String street
                 String city
                 String country
+                static constraints = {
+                    country inList: ["USA", "UK", "Canada"]
+                }
             }
 		'''
     }
@@ -202,4 +205,11 @@ class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
 
         assert applyTemplate('<g:scaffoldInput bean="personInstance" property="address.city"/>', [personInstance: personInstance]) == "<em>invalid</em>"
     }
+
+    void testEmbeddedClassConstraintsArePassedToTemplate() {
+        resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", 'inList=${constraints.inList}')
+
+        assert applyTemplate('<g:scaffoldInput bean="personInstance" property="address.country"/>', [personInstance: personInstance]) == "inList=[USA, UK, Canada]"
+    }
+
 }
