@@ -26,6 +26,8 @@ class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
                 String city
                 String country
                 static constraints = {
+                    street blank: false
+                    city blank: false
                     country inList: ["USA", "UK", "Canada"]
                 }
             }
@@ -193,6 +195,14 @@ class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
         assert applyTemplate('<g:scaffoldInput bean="personInstance" property="name"/>', [personInstance: personInstance]) == "<em>blank</em><em>nullable</em>"
     }
 
+    void testResolvesTemplateForEmbeddedClassProperty() {
+		resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", 'DEFAULT FIELD TEMPLATE')
+        resourceLoader.registerMockResource("/grails-app/views/fields/_java.lang.String.gsp", 'PROPERTY TYPE TEMPLATE')
+        resourceLoader.registerMockResource("/grails-app/views/fields/_Address.city.gsp", 'CLASS AND PROPERTY TEMPLATE')
+
+        assert applyTemplate('<g:scaffoldInput bean="personInstance" property="address.city"/>', [personInstance: personInstance]) == "CLASS AND PROPERTY TEMPLATE"
+    }
+
     void testRendersEmbeddedProperty() {
         resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", 'bean=${bean.getClass().name}, property=${property}, value=${value}')
 
@@ -210,6 +220,17 @@ class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
         resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", 'inList=${constraints.inList}')
 
         assert applyTemplate('<g:scaffoldInput bean="personInstance" property="address.country"/>', [personInstance: personInstance]) == "inList=[USA, UK, Canada]"
+    }
+
+    void testErrorsAreResolvedCorrectlyForEmbeddedProperty() {
+        resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", '<g:each var="error" in="${errors}"><em>${error}</em></g:each>')
+        personInstance.address.street = ""
+        personInstance.validate()
+        println personInstance.errors.allErrors
+//        personInstance.address.errors.rejectValue("street", "blank")
+//        personInstance.address.errors.rejectValue("street", "nullable")
+
+        assert applyTemplate('<g:scaffoldInput bean="personInstance" property="address.street"/>', [personInstance: personInstance]) == "<em>blank</em><em>nullable</em>"
     }
 
 }

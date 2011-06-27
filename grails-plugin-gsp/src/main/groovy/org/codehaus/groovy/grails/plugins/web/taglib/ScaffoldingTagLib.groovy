@@ -6,7 +6,7 @@ import org.codehaus.groovy.grails.commons.GrailsDomainClass
 import org.codehaus.groovy.grails.commons.GrailsDomainClassProperty
 import org.codehaus.groovy.grails.io.support.GrailsResourceUtils
 import org.codehaus.groovy.grails.plugins.support.aware.GrailsApplicationAware
-import org.springframework.datastore.mapping.model.PersistentProperty
+
 import org.springframework.beans.BeanWrapper
 import org.springframework.beans.PropertyAccessorFactory
 import org.codehaus.groovy.grails.validation.ConstrainedProperty
@@ -23,7 +23,6 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
 
         def bean = resolveBean(attrs)
         def beanClass = bean.getClass()
-        def domainClass = resolveDomainClass(beanClass)
         def propertyName = attrs.property
         def propertyResolver = PropertyResolver.forBeanAndPath(grailsApplication, bean, propertyName)
 
@@ -37,7 +36,8 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
 
         def templateResolveOrder = []
         templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views', controllerName, propertyName)
-        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views/fields', "${beanClass.name}.$propertyName".toString())
+        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views/fields', "${propertyResolver.rootBeanType.name}.${propertyResolver.pathFromRoot}".toString())
+        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views/fields', "${propertyResolver.beanType.name}.${propertyResolver.propertyName}".toString())
         templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views/fields', propertyResolver.type.name)
         templateResolveOrder << '/grails-app/views/fields/default'
 
@@ -87,24 +87,27 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
 
 class PropertyResolver {
 
-    final GrailsDomainClass owner
+    final GrailsDomainClass rootBeanClass
+    final String pathFromRoot
+    final GrailsDomainClass beanClass
     final String propertyName
     final value
 
     static PropertyResolver forBeanAndPath(GrailsApplication grailsApplication, bean, String property) {
         def domainClass = resolveDomainClass(grailsApplication, bean.getClass())
         def path = property.tokenize(".")
-        resolvePropertyFromPathComponents(PropertyAccessorFactory.forBeanPropertyAccess(bean), domainClass, path)
+        resolvePropertyFromPathComponents(PropertyAccessorFactory.forBeanPropertyAccess(bean), domainClass, property, domainClass, path)
     }
 
-    private static PropertyResolver resolvePropertyFromPathComponents(BeanWrapper bean, GrailsDomainClass domainClass, List<String> path) {
+    private static PropertyResolver resolvePropertyFromPathComponents(BeanWrapper bean, GrailsDomainClass rootClass, String pathFromRoot, GrailsDomainClass domainClass, List<String> path) {
+        println "bean=$bean, rootClass=$rootClass, pathFromRoot=$pathFromRoot, domainClass=$domainClass, path=$path"
         def propertyName = path.remove(0)
         def value = bean.getPropertyValue(propertyName)
         if (path.empty) {
-            new PropertyResolver(domainClass, propertyName, value)
+            new PropertyResolver(rootClass, pathFromRoot, domainClass, propertyName, value)
         } else {
             def persistentProperty = domainClass.getPersistentProperty(propertyName)
-            resolvePropertyFromPathComponents(PropertyAccessorFactory.forBeanPropertyAccess(value), persistentProperty.component, path)
+            resolvePropertyFromPathComponents(PropertyAccessorFactory.forBeanPropertyAccess(value), rootClass, pathFromRoot, persistentProperty.component, path)
         }
     }
 
@@ -112,10 +115,20 @@ class PropertyResolver {
         grailsApplication.getArtefact("Domain", beanClass.simpleName)
     }
 
-    private PropertyResolver(GrailsDomainClass owner, String propertyName, value) {
-        this.owner = owner
+    private PropertyResolver(GrailsDomainClass rootBeanClass, String pathFromRoot, GrailsDomainClass beanClass, String propertyName, value) {
+        this.rootBeanClass = rootBeanClass
+        this.pathFromRoot = pathFromRoot
+        this.beanClass = beanClass
         this.propertyName = propertyName
         this.value = value
+    }
+
+    Class getRootBeanType() {
+        rootBeanClass.clazz
+    }
+
+    Class getBeanType() {
+        beanClass.clazz
     }
 
     Class getType() {
@@ -123,11 +136,11 @@ class PropertyResolver {
     }
 
     GrailsDomainClassProperty getPersistentProperty() {
-        owner.getPersistentProperty(propertyName)
+        beanClass.getPersistentProperty(propertyName)
     }
 
     ConstrainedProperty getConstraints() {
-        owner.constrainedProperties[propertyName]
+        beanClass.constrainedProperties[propertyName]
     }
 
 }
