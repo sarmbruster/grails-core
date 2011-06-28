@@ -104,9 +104,20 @@ class PropertyResolver {
             new PropertyResolver(rootClass, pathFromRoot, domainClass, propertyName, value)
         } else {
             def persistentProperty = domainClass.getPersistentProperty(propertyName)
-            resolvePropertyFromPathComponents(PropertyAccessorFactory.forBeanPropertyAccess(value), rootClass, pathFromRoot, persistentProperty.component, path)
+			def propertyDomainClass = resolvePropertyDomainClass(persistentProperty)
+            resolvePropertyFromPathComponents(PropertyAccessorFactory.forBeanPropertyAccess(value), rootClass, pathFromRoot, propertyDomainClass, path)
         }
     }
+
+	private static GrailsDomainClass resolvePropertyDomainClass(GrailsDomainClassProperty persistentProperty) {
+		if (persistentProperty.association) {
+			persistentProperty.referencedDomainClass
+		} else if (persistentProperty.embedded) {
+			persistentProperty.component
+		} else {
+			null
+		}
+	}
 
     private static GrailsDomainClass resolveDomainClass(grailsApplication, Class beanClass) {
         grailsApplication.getArtefact("Domain", beanClass.simpleName)
