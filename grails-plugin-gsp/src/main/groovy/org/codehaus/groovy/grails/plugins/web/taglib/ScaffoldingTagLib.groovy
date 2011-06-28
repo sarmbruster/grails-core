@@ -6,10 +6,9 @@ import org.codehaus.groovy.grails.commons.GrailsDomainClass
 import org.codehaus.groovy.grails.commons.GrailsDomainClassProperty
 import org.codehaus.groovy.grails.io.support.GrailsResourceUtils
 import org.codehaus.groovy.grails.plugins.support.aware.GrailsApplicationAware
-
+import org.codehaus.groovy.grails.validation.ConstrainedProperty
 import org.springframework.beans.BeanWrapper
 import org.springframework.beans.PropertyAccessorFactory
-import org.codehaus.groovy.grails.validation.ConstrainedProperty
 
 @Artefact("TagLibrary")
 class ScaffoldingTagLib implements GrailsApplicationAware {
@@ -36,7 +35,6 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
 
         def templateResolveOrder = []
         templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views', controllerName, propertyName)
-        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views/fields', "${propertyResolver.rootBeanType.name}.${propertyResolver.pathFromRoot}".toString())
         templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views/fields', "${propertyResolver.beanType.name}.${propertyResolver.propertyName}".toString())
         templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views/fields', propertyResolver.type.name)
         templateResolveOrder << '/grails-app/views/fields/default'
