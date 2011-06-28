@@ -224,13 +224,9 @@ class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
 
     void testErrorsAreResolvedCorrectlyForEmbeddedProperty() {
         resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", '<g:each var="error" in="${errors}"><em>${error}</em></g:each>')
-        personInstance.address.street = ""
-        personInstance.validate()
-        println personInstance.errors.allErrors
-//        personInstance.address.errors.rejectValue("street", "blank")
-//        personInstance.address.errors.rejectValue("street", "nullable")
+        personInstance.errors.rejectValue("address.street", "blank") // this should replicate real validation but seems like .validate() won't cascade in this test setup
 
-        assert applyTemplate('<g:scaffoldInput bean="personInstance" property="address.street"/>', [personInstance: personInstance]) == "<em>blank</em><em>nullable</em>"
+        assert applyTemplate('<g:scaffoldInput bean="personInstance" property="address.street"/>', [personInstance: personInstance]) == "<em>blank</em>"
     }
 
 }

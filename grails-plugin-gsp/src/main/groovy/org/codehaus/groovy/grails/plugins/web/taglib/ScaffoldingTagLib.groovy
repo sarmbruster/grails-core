@@ -100,7 +100,6 @@ class PropertyResolver {
     }
 
     private static PropertyResolver resolvePropertyFromPathComponents(BeanWrapper bean, GrailsDomainClass rootClass, String pathFromRoot, GrailsDomainClass domainClass, List<String> path) {
-        println "bean=$bean, rootClass=$rootClass, pathFromRoot=$pathFromRoot, domainClass=$domainClass, path=$path"
         def propertyName = path.remove(0)
         def value = bean.getPropertyValue(propertyName)
         if (path.empty) {
