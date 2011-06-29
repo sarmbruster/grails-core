@@ -22,9 +22,8 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
         if (!attrs.property) throwTagError("Tag [scaffoldInput] is missing required attribute [property]")
 
         def bean = resolveBean(attrs)
-        def beanClass = bean.getClass()
-        def propertyName = attrs.property
-        def propertyResolver = PropertyResolver.forBeanAndPath(grailsApplication, bean, propertyName)
+        def propertyPath = attrs.property
+        def propertyResolver = PropertyResolver.forBeanAndPath(grailsApplication, bean, propertyPath)
 
         // order of priority for template resolution
         // 1: grails-app/views/controller/_<property>.gsp
@@ -35,7 +34,7 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
         // TODO: recursive resolution for embedded types
 
         def templateResolveOrder = []
-        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views', controllerName, propertyName)
+        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views', controllerName, propertyPath)
         templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views/fields', "${propertyResolver.beanType.name}.${propertyResolver.propertyName}".toString())
         templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views/fields', propertyResolver.type.name)
         templateResolveOrder << '/grails-app/views/fields/default'
@@ -48,11 +47,11 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
 
         def model = [:]
         model.bean = bean
-        model.property = propertyName
+        model.property = propertyPath
         model.label = resolveLabelText(propertyResolver.persistentProperty, attrs)
         model.value = attrs.value ?: propertyResolver.value ?: attrs.default
         model.constraints = propertyResolver.constraints
-        model.errors = bean.errors.getFieldErrors(propertyName).collect { message(error: it) }
+        model.errors = bean.errors.getFieldErrors(propertyPath).collect { message(error: it) }
 
         out << render(template: template, model: model)
     }
