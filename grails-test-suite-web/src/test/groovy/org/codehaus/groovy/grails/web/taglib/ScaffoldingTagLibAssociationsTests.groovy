@@ -26,6 +26,9 @@ class ScaffoldingTagLibAssociationsTests extends AbstractGrailsTagTests {
             class Book {
                 String title
 				static belongsTo = [author: Author]
+				static constraints = {
+					title blank: false
+				}
             }
 		'''
     }
@@ -78,10 +81,37 @@ class ScaffoldingTagLibAssociationsTests extends AbstractGrailsTagTests {
         assert applyTemplate('<g:scaffoldInput bean="bookInstance" property="author.name"/>', [bookInstance: bookInstance]) == "<em>invalid</em>"
     }
 
-    void testManyToOneClassConstraintsArePassedToTemplate() {
+    void testManyToOnePropertyConstraintsArePassedToTemplate() {
         resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", 'blank=${constraints.blank}')
 
         assert applyTemplate('<g:scaffoldInput bean="bookInstance" property="author.name"/>', [bookInstance: bookInstance]) == "blank=false"
+    }
+
+    void testResolvesTemplateForOneToManyProperty() {
+		resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", 'DEFAULT FIELD TEMPLATE')
+        resourceLoader.registerMockResource("/grails-app/views/fields/_java.lang.String.gsp", 'PROPERTY TYPE TEMPLATE')
+        resourceLoader.registerMockResource("/grails-app/views/fields/_Book.title.gsp", 'CLASS AND PROPERTY TEMPLATE')
+
+        assert applyTemplate('<g:scaffoldInput bean="authorInstance" property="books[0].title"/>', [authorInstance: authorInstance]) == "CLASS AND PROPERTY TEMPLATE"
+    }
+
+    void testRendersOneToManyProperty() {
+        resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", 'bean=${bean.getClass().name}, property=${property}, value=${value}')
+
+        assert applyTemplate('<g:scaffoldInput bean="authorInstance" property="books[0].title"/>', [authorInstance: authorInstance]) == "bean=Author, property=books[0].title, value=Pattern Recognition"
+    }
+
+    void testRendersOneToManyPropertyWithErrors() {
+        resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", '<g:each var="error" in="${errors}"><em>${error}</em></g:each>')
+        bookInstance.errors.rejectValue("books[0].title", "invalid")
+
+        assert applyTemplate('<g:scaffoldInput bean="authorInstance" property="books[0].title"/>', [authorInstance: authorInstance]) == "<em>invalid</em>"
+    }
+
+    void testOneToManyPropertyConstraintsArePassedToTemplate() {
+        resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", 'blank=${constraints.blank}')
+
+        assert applyTemplate('<g:scaffoldInput bean="authorInstance" property="books[0].title"/>', [authorInstance: authorInstance]) == "blank=false"
     }
 
 }
