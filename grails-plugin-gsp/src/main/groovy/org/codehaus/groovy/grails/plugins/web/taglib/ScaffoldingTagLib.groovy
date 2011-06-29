@@ -85,7 +85,7 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
 
 class PropertyResolver {
 
-    private static final Pattern INDEXED_PROPERTY_PATTERN = ~/^(\w+)\[(\d+)\]$/
+    private static final Pattern INDEXED_PROPERTY_PATTERN = ~/^(\w+)\[(.+)\]$/
 
     final GrailsDomainClass rootBeanClass
     final String pathFromRoot
