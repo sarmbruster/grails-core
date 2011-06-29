@@ -103,7 +103,7 @@ class ScaffoldingTagLibAssociationsTests extends AbstractGrailsTagTests {
 
     void testRendersOneToManyPropertyWithErrors() {
         resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", '<g:each var="error" in="${errors}"><em>${error}</em></g:each>')
-        bookInstance.errors.rejectValue("books[0].title", "invalid")
+        authorInstance.errors.rejectValue("books[0].title", "invalid")
 
         assert applyTemplate('<g:scaffoldInput bean="authorInstance" property="books[0].title"/>', [authorInstance: authorInstance]) == "<em>invalid</em>"
     }

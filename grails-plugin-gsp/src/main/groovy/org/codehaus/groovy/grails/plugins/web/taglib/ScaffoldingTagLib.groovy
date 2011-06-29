@@ -1,6 +1,7 @@
 package org.codehaus.groovy.grails.plugins.web.taglib
 
 import grails.artefact.Artefact
+import java.util.regex.Pattern
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.commons.GrailsDomainClass
 import org.codehaus.groovy.grails.commons.GrailsDomainClassProperty
@@ -85,6 +86,8 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
 
 class PropertyResolver {
 
+    private static final Pattern INDEXED_PROPERTY_PATTERN = ~/^(\w+)\[(\d+)\]$/
+
     final GrailsDomainClass rootBeanClass
     final String pathFromRoot
     final GrailsDomainClass beanClass
@@ -103,21 +106,27 @@ class PropertyResolver {
         if (path.empty) {
             new PropertyResolver(rootClass, pathFromRoot, domainClass, propertyName, value)
         } else {
-            def persistentProperty = domainClass.getPersistentProperty(propertyName)
-			def propertyDomainClass = resolvePropertyDomainClass(persistentProperty)
+            def persistentProperty
+            def matcher = propertyName =~ INDEXED_PROPERTY_PATTERN
+            if (matcher.matches()) {
+                persistentProperty = domainClass.getPersistentProperty(matcher[0][1])
+            } else {
+                persistentProperty = domainClass.getPersistentProperty(propertyName)
+            }
+            def propertyDomainClass = resolvePropertyDomainClass(persistentProperty)
             resolvePropertyFromPathComponents(PropertyAccessorFactory.forBeanPropertyAccess(value), rootClass, pathFromRoot, propertyDomainClass, path)
         }
     }
 
-	private static GrailsDomainClass resolvePropertyDomainClass(GrailsDomainClassProperty persistentProperty) {
-		if (persistentProperty.association) {
-			persistentProperty.referencedDomainClass
-		} else if (persistentProperty.embedded) {
-			persistentProperty.component
-		} else {
-			null
-		}
-	}
+    private static GrailsDomainClass resolvePropertyDomainClass(GrailsDomainClassProperty persistentProperty) {
+        if (persistentProperty.association) {
+            persistentProperty.referencedDomainClass
+        } else if (persistentProperty.embedded) {
+            persistentProperty.component
+        } else {
+            null
+        }
+    }
 
     private static GrailsDomainClass resolveDomainClass(grailsApplication, Class beanClass) {
         grailsApplication.getArtefact("Domain", beanClass.simpleName)
