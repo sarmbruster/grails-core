@@ -16,7 +16,7 @@ class ScaffoldingTagLibSimpleCollectionTests extends AbstractGrailsTagTests {
 				Map emails = [:]
 				static hasMany = [emails: String]
                 static constraints = {
-                    emails blank: false
+                    emails minSize: 1, blank: false
                 }
 			}
 		'''
@@ -47,10 +47,25 @@ class ScaffoldingTagLibSimpleCollectionTests extends AbstractGrailsTagTests {
         resourceLoader.registerMockResource("/grails-app/views/fields/_java.lang.String.gsp", 'PROPERTY TYPE TEMPLATE')
         resourceLoader.registerMockResource("/grails-app/views/fields/_Person.emails.gsp", 'CLASS AND PROPERTY TEMPLATE')
 
+        assert applyTemplate('<g:scaffoldInput bean="personInstance" property="emails"/>', [personInstance: personInstance]) == "CLASS AND PROPERTY TEMPLATE"
+    }
+
+    // TODO: not sure if this is actually desirable behaviour
+    void testResolvesTemplateForMemberOfMapProperty() {
+		resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", 'DEFAULT FIELD TEMPLATE')
+        resourceLoader.registerMockResource("/grails-app/views/fields/_java.lang.String.gsp", 'PROPERTY TYPE TEMPLATE')
+        resourceLoader.registerMockResource("/grails-app/views/fields/_Person.emails.gsp", 'CLASS AND PROPERTY TEMPLATE')
+
         assert applyTemplate('<g:scaffoldInput bean="personInstance" property="emails[work]"/>', [personInstance: personInstance]) == "CLASS AND PROPERTY TEMPLATE"
     }
 
     void testRendersMapProperty() {
+        resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", 'bean=${bean.getClass().name}, property=${property}, value=${value}')
+
+        assert applyTemplate('<g:scaffoldInput bean="personInstance" property="emails"/>', [personInstance: personInstance]) == "bean=Person, property=emails, value={work=homer@compuglobalhypermega.net, home=homer.j.simpson@gmail.com}"
+    }
+
+    void testRendersMemberOfMapProperty() {
         resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", 'bean=${bean.getClass().name}, property=${property}, value=${value}')
 
         assert applyTemplate('<g:scaffoldInput bean="personInstance" property="emails[work]"/>', [personInstance: personInstance]) == "bean=Person, property=emails[work], value=homer@compuglobalhypermega.net"
@@ -58,12 +73,25 @@ class ScaffoldingTagLibSimpleCollectionTests extends AbstractGrailsTagTests {
 
     void testRendersMapPropertyWithErrors() {
         resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", '<g:each var="error" in="${errors}"><em>${error}</em></g:each>')
+        personInstance.errors.rejectValue("emails", "invalid")
+
+        assert applyTemplate('<g:scaffoldInput bean="personInstance" property="emails"/>', [personInstance: personInstance]) == "<em>invalid</em>"
+    }
+
+    void testRendersMemberOfMapPropertyWithErrors() {
+        resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", '<g:each var="error" in="${errors}"><em>${error}</em></g:each>')
         personInstance.errors.rejectValue("emails[work]", "invalid")
 
         assert applyTemplate('<g:scaffoldInput bean="personInstance" property="emails[work]"/>', [personInstance: personInstance]) == "<em>invalid</em>"
     }
 
     void testMapPropertyConstraintsArePassedToTemplate() {
+        resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", 'minSize=${constraints.minSize}')
+
+        assert applyTemplate('<g:scaffoldInput bean="personInstance" property="emails"/>', [personInstance: personInstance]) == "minSize=1"
+    }
+
+    void testMapElementConstraintsArePassedToTemplate() {
         resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", 'blank=${constraints.blank}')
 
         assert applyTemplate('<g:scaffoldInput bean="personInstance" property="emails[work]"/>', [personInstance: personInstance]) == "blank=false"
