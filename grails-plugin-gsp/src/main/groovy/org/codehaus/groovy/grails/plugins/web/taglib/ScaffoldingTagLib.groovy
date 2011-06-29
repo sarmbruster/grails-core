@@ -103,7 +103,12 @@ class PropertyResolver {
         def propertyName = path.remove(0)
         def value = bean.getPropertyValue(propertyName)
         if (path.empty) {
-            new PropertyResolver(rootClass, pathFromRoot, domainClass, propertyName, value)
+            def matcher = propertyName =~ INDEXED_PROPERTY_PATTERN
+            if (matcher.matches()) {
+                new PropertyResolver(rootClass, pathFromRoot, domainClass, matcher[0][1], value)
+            } else {
+                new PropertyResolver(rootClass, pathFromRoot, domainClass, propertyName, value)
+            }
         } else {
             def persistentProperty
             def matcher = propertyName =~ INDEXED_PROPERTY_PATTERN
