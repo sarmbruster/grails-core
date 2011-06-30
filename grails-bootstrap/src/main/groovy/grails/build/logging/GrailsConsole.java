@@ -29,7 +29,6 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Stack;
 
-import com.sun.org.apache.xpath.internal.operations.Bool;
 import jline.ConsoleReader;
 import jline.Terminal;
 import jline.UnsupportedTerminal;
@@ -499,6 +498,11 @@ public class GrailsConsole {
      * string.
      */
     public String userInput(String msg) {
+        // Add a space to the end of the message if there isn't one already.
+        if (!msg.endsWith(" ") && !msg.endsWith("\t")) {
+            msg += ' ';
+        }
+
         lastMessage = "";
         msg = isAnsiEnabled() ? outputCategory(ansi(), ">").fg(DEFAULT).a(msg).toString() : msg;
         return showPrompt(msg);
