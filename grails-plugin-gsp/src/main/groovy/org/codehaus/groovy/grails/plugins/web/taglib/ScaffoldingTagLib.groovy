@@ -1,14 +1,13 @@
 package org.codehaus.groovy.grails.plugins.web.taglib
 
 import grails.artefact.Artefact
-import java.util.regex.Pattern
+
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.commons.GrailsDomainClass
 import org.codehaus.groovy.grails.commons.GrailsDomainClassProperty
 import org.codehaus.groovy.grails.io.support.GrailsResourceUtils
 import org.codehaus.groovy.grails.plugins.support.aware.GrailsApplicationAware
-import org.codehaus.groovy.grails.validation.ConstrainedProperty
-import org.springframework.beans.BeanWrapper
+
 import org.springframework.beans.PropertyAccessorFactory
 
 @Artefact("TagLibrary")
@@ -23,7 +22,7 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
 
         def bean = resolveBean(attrs)
         def propertyPath = attrs.property
-        def propertyResolver = PropertyResolver.forBeanAndPath(grailsApplication, bean, propertyPath)
+        def propertyAccessor = org.codehaus.groovy.grails.plugins.beanfields.BeanPropertyAccessor.forBeanAndPath(grailsApplication, bean, propertyPath)
 
         // order of priority for template resolution
         // 1: grails-app/views/controller/_<property>.gsp
@@ -33,24 +32,24 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
         // TODO: implications for templates supplied by plugins
         // TODO: recursive resolution for embedded types
 
-        def template = resolveTemplate(propertyResolver)
+        def template = resolveTemplate(propertyAccessor)
 
         def model = [:]
         model.bean = bean
         model.property = propertyPath
-        model.label = resolveLabelText(propertyResolver.persistentProperty, attrs)
-        model.value = attrs.value ?: propertyResolver.value ?: attrs.default
-        model.constraints = propertyResolver.constraints
+        model.label = resolveLabelText(propertyAccessor.persistentProperty, attrs)
+        model.value = attrs.value ?: propertyAccessor.value ?: attrs.default
+        model.constraints = propertyAccessor.constraints
         model.errors = bean.errors.getFieldErrors(propertyPath).collect { message(error: it) }
 
         out << render(template: template, model: model)
     }
 
-    private def resolveTemplate(PropertyResolver propertyResolver) {
+    private def resolveTemplate(def propertyAccessor) {
         def templateResolveOrder = []
-        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views', controllerName, propertyResolver.pathFromRoot)
-        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views/fields', "${propertyResolver.beanType.name}.${propertyResolver.propertyName}".toString())
-        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views/fields', propertyResolver.type.name)
+        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views', controllerName, propertyAccessor.pathFromRoot)
+        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views/fields', "${propertyAccessor.beanType.name}.${propertyAccessor.propertyName}".toString())
+        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views/fields', propertyAccessor.type.name)
         templateResolveOrder << '/grails-app/views/fields/default'
 
         // TODO: this is doing the entire resolution twice, we need to make some of the internal functionality of GroovyPagesTemplateEngine and RenderTagLib more accessible so that it can be shared by this code
@@ -88,85 +87,3 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
     }
 }
 
-class PropertyResolver {
-
-    private static final Pattern INDEXED_PROPERTY_PATTERN = ~/^(\w+)\[(.+)\]$/
-
-    final GrailsDomainClass rootBeanClass
-    final String pathFromRoot
-    final GrailsDomainClass beanClass
-    final String propertyName
-    final value
-
-    static PropertyResolver forBeanAndPath(GrailsApplication grailsApplication, bean, String property) {
-        def domainClass = resolveDomainClass(grailsApplication, bean.getClass())
-        def pathElements = property.tokenize(".")
-        resolvePropertyFromPathComponents(PropertyAccessorFactory.forBeanPropertyAccess(bean), domainClass, property, domainClass, pathElements)
-    }
-
-    private static PropertyResolver resolvePropertyFromPathComponents(BeanWrapper bean, GrailsDomainClass rootClass, String pathFromRoot, GrailsDomainClass domainClass, List<String> pathElements) {
-        def propertyName = pathElements.remove(0)
-        def value = bean.getPropertyValue(propertyName)
-        if (pathElements.empty) {
-            def matcher = propertyName =~ INDEXED_PROPERTY_PATTERN
-            if (matcher.matches()) {
-                new PropertyResolver(rootClass, pathFromRoot, domainClass, matcher[0][1], value)
-            } else {
-                new PropertyResolver(rootClass, pathFromRoot, domainClass, propertyName, value)
-            }
-        } else {
-            def persistentProperty
-            def matcher = propertyName =~ INDEXED_PROPERTY_PATTERN
-            if (matcher.matches()) {
-                persistentProperty = domainClass.getPersistentProperty(matcher[0][1])
-            } else {
-                persistentProperty = domainClass.getPersistentProperty(propertyName)
-            }
-            def propertyDomainClass = resolvePropertyDomainClass(persistentProperty)
-            resolvePropertyFromPathComponents(PropertyAccessorFactory.forBeanPropertyAccess(value), rootClass, pathFromRoot, propertyDomainClass, pathElements)
-        }
-    }
-
-    private static GrailsDomainClass resolvePropertyDomainClass(GrailsDomainClassProperty persistentProperty) {
-        if (persistentProperty.embedded) {
-            persistentProperty.component
-        } else if (persistentProperty.association) {
-            persistentProperty.referencedDomainClass
-        } else {
-            null
-        }
-    }
-
-    private static GrailsDomainClass resolveDomainClass(grailsApplication, Class beanClass) {
-        grailsApplication.getArtefact("Domain", beanClass.simpleName)
-    }
-
-    private PropertyResolver(GrailsDomainClass rootBeanClass, String pathFromRoot, GrailsDomainClass beanClass, String propertyName, value) {
-        this.rootBeanClass = rootBeanClass
-        this.pathFromRoot = pathFromRoot
-        this.beanClass = beanClass
-        this.propertyName = propertyName
-        this.value = value
-    }
-
-    Class getRootBeanType() {
-        rootBeanClass.clazz
-    }
-
-    Class getBeanType() {
-        beanClass.clazz
-    }
-
-    Class getType() {
-        persistentProperty.type
-    }
-
-    GrailsDomainClassProperty getPersistentProperty() {
-        beanClass.getPersistentProperty(propertyName)
-    }
-
-    ConstrainedProperty getConstraints() {
-        beanClass.constrainedProperties[propertyName]
-    }
-
-}
