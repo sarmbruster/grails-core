@@ -78,7 +78,7 @@ class GroovyPagesTemplateEngineTests extends GroovyTestCase {
         def webRequest = GrailsWebUtil.bindMockWebRequest()
 
 
-        def uri1 = "/WEB-INF/grails-app/views/another.gsp"
+        def uri1 = "/another"
         assertNotNull(webRequest.request)
         webRequest.request.requestURI = "/another"
         webRequest.request.servletPath = "/another"
@@ -89,6 +89,8 @@ class GroovyPagesTemplateEngineTests extends GroovyTestCase {
 
         def gpte = new GroovyPagesTemplateEngine(new MockServletContext(rl))
         gpte.afterPropertiesSet()
+
+        gpte.groovyPageLocator.addResourceLoader(rl)
 
         def t = gpte.createTemplate()
         def w = t.make()
@@ -109,7 +111,7 @@ class GroovyPagesTemplateEngineTests extends GroovyTestCase {
         webRequest.request.requestURI = uri1
         webRequest.request.servletPath = uri1
 
-        def uri2 = "/WEB-INF/grails-apps/views/another.gsp"
+        def uri2 = "/another"
 
         def rl = new MockStringResourceLoader()
         rl.registerMockResource(uri1, "<%='success 1'%>")
@@ -117,6 +119,8 @@ class GroovyPagesTemplateEngineTests extends GroovyTestCase {
 
         def gpte = new GroovyPagesTemplateEngine(new MockServletContext(rl))
         gpte.afterPropertiesSet()
+
+        gpte.groovyPageLocator.addResourceLoader(rl)
 
         def t = gpte.createTemplate()
         def w = t.make()
@@ -146,6 +150,26 @@ class GroovyPagesTemplateEngineTests extends GroovyTestCase {
         assertEquals "hello", sw.toString()
     }
 
+    void testNestingGroovyExpressionInAttribute() {
+        
+        GrailsWebUtil.bindMockWebRequest()
+
+        def gpte = new GroovyPagesTemplateEngine(new MockServletContext())
+        gpte.afterPropertiesSet()
+
+        def src = '''<g:actionSubmit onclick="return confirm('${message}')"/>'''
+        def t = gpte.createTemplate(src, "hello_test")
+
+        def w = t.make(message: 'Are You Sure')
+
+        def sw = new StringWriter()
+        def pw = new PrintWriter(sw)
+
+        w.writeTo(pw)
+
+        assertEquals '''<g:actionSubmit onclick="return confirm('Are You Sure')"></g:actionSubmit>''', sw.toString()
+    }
+    
 	void testParsingNestedCurlyBraces() {
         
         GrailsWebUtil.bindMockWebRequest()
