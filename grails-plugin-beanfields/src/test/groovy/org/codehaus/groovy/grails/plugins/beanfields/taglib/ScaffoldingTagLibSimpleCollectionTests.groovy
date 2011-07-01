@@ -1,9 +1,9 @@
-package org.codehaus.groovy.grails.web.taglib
+package org.codehaus.groovy.grails.plugins.beanfields.taglib
 
 import org.codehaus.groovy.grails.plugins.web.taglib.RenderTagLib
 import org.codehaus.groovy.grails.support.MockStringResourceLoader
 
-class ScaffoldingTagLibSimpleCollectionTests extends AbstractGrailsTagTests {
+class ScaffoldingTagLibSimpleCollectionTests extends org.codehaus.groovy.grails.web.taglib.AbstractGrailsTagTests {
 
     def personInstance
     def resourceLoader

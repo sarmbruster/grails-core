@@ -1,19 +1,19 @@
 package org.codehaus.groovy.grails.plugins.beanfields
 
+import grails.persistence.Entity
 import grails.test.mixin.Mock
+import grails.test.mixin.TestFor
+import org.codehaus.groovy.grails.plugins.beanfields.taglib.ScaffoldingTagLib
 import spock.lang.Specification
 
-@Mock(Person)
+@TestFor(ScaffoldingTagLib)
+@Mock([Person, Address])
 class BeanPropertyAccessorSpec extends Specification {
-
-    def gcl = new GroovyClassLoader()
-    def personClass
-    def addressClass
 
     def "can resolve basic property on a domain instance"() {
         given:
-        def address = addressClass.newInstance(street: "94 Evergreen Terrace", city: "Springfield", country: "USA")
-        def person = person.newInstance(name: "Bart Simpson", password: "bartman", gender: "Male", dateOfBirth: new Date(87, 3, 19), address: address)
+        def address = new Address(street: "94 Evergreen Terrace", city: "Springfield", country: "USA")
+        def person = new Person(name: "Bart Simpson", password: "bartman", gender: "Male", dateOfBirth: new Date(87, 3, 19), address: address)
         person.save(failOnError: true)
 
         when:
@@ -22,9 +22,9 @@ class BeanPropertyAccessorSpec extends Specification {
         then:
         propertyAccessor.value == person.name
     }
+}
 
-    def setup() {
-        gcl.parseClass '''
+@Entity
 class Person {
     String name
     String password
@@ -34,6 +34,7 @@ class Person {
     static embedded = ['address']
 }
 
+@Entity
 class Address {
     String street
     String city
@@ -42,11 +43,5 @@ class Address {
         street blank: false
         city blank: false
         country inList: ["USA", "UK", "Canada"]
-    }
-}
-'''
-
-        personClass = grailsApplication.getDomainClass("Person").clazz
-        addressClass = grailsApplication.classLoader.loadClass("Address")
     }
 }

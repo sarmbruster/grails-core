@@ -39,7 +39,7 @@ import org.codehaus.groovy.grails.plugins.web.taglib.*
 import org.codehaus.groovy.grails.web.pages.*
 import org.codehaus.groovy.grails.web.errors.ErrorsViewStackTracePrinter
 import grails.gsp.PageRenderer
-import org.codehaus.groovy.grails.web.pages.discovery.CachingGroovyPageLocator
+
 import org.codehaus.groovy.grails.web.pages.discovery.GrailsConventionGroovyPageLocator
 import org.codehaus.groovy.grails.web.pages.discovery.CachingGrailsConventionGroovyPageLocator
 
@@ -70,7 +70,6 @@ class GroovyPagesGrailsPlugin {
         RenderTagLib,
         ValidationTagLib,
         PluginTagLib,
-		ScaffoldingTagLib,
         SitemeshTagLib,
         JavascriptLibraryFilters
     ]

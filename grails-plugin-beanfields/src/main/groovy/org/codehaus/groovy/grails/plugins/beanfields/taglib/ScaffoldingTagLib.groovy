@@ -1,13 +1,13 @@
-package org.codehaus.groovy.grails.plugins.web.taglib
+package org.codehaus.groovy.grails.plugins.beanfields.taglib
 
 import grails.artefact.Artefact
-
 import org.codehaus.groovy.grails.commons.GrailsApplication
 import org.codehaus.groovy.grails.commons.GrailsDomainClass
 import org.codehaus.groovy.grails.commons.GrailsDomainClassProperty
 import org.codehaus.groovy.grails.io.support.GrailsResourceUtils
+import org.codehaus.groovy.grails.plugins.beanfields.BeanPropertyAccessor
 import org.codehaus.groovy.grails.plugins.support.aware.GrailsApplicationAware
-
+import org.codehaus.groovy.grails.web.pages.discovery.GrailsConventionGroovyPageLocator
 import org.springframework.beans.PropertyAccessorFactory
 
 @Artefact("TagLibrary")

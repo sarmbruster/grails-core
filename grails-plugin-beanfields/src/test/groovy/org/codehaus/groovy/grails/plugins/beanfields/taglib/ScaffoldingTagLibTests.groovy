@@ -1,11 +1,13 @@
-package org.codehaus.groovy.grails.web.taglib
+package org.codehaus.groovy.grails.plugins.beanfields.taglib
 
 import org.codehaus.groovy.grails.plugins.web.taglib.RenderTagLib
 import org.codehaus.groovy.grails.support.MockStringResourceLoader
 import org.codehaus.groovy.grails.web.taglib.exceptions.GrailsTagException
 import org.springframework.web.servlet.support.RequestContextUtils
+import org.codehaus.groovy.grails.plugins.beanfields.BeanfieldsGrailsPlugin
+import org.codehaus.groovy.grails.plugins.DefaultGrailsPlugin
 
-class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
+class ScaffoldingTagLibTests extends org.codehaus.groovy.grails.web.taglib.AbstractGrailsTagTests {
 
     def personInstance
     def resourceLoader
@@ -37,6 +39,11 @@ class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
     @Override
     void setUp() {
         super.setUp()
+
+        def plugin = new DefaultGrailsPlugin(BeanfieldsGrailsPlugin, grailsApplication)
+        mockManager.registerMockPlugin(plugin)
+        plugin.manager = mockManager
+        plugin.doWithRuntimeConfiguration(springConfig)
 
         resourceLoader = new MockStringResourceLoader()
         appCtx.groovyPagesTemplateEngine.resourceLoader = resourceLoader

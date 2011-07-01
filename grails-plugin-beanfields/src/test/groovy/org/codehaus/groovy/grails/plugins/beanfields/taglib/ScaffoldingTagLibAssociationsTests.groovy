@@ -1,11 +1,11 @@
-package org.codehaus.groovy.grails.web.taglib
+package org.codehaus.groovy.grails.plugins.beanfields.taglib
 
 import org.codehaus.groovy.grails.plugins.web.taglib.RenderTagLib
 import org.codehaus.groovy.grails.support.MockStringResourceLoader
 import org.codehaus.groovy.grails.web.taglib.exceptions.GrailsTagException
 import org.springframework.web.servlet.support.RequestContextUtils
 
-class ScaffoldingTagLibAssociationsTests extends AbstractGrailsTagTests {
+class ScaffoldingTagLibAssociationsTests extends org.codehaus.groovy.grails.web.taglib.AbstractGrailsTagTests {
 
     def authorInstance
 	def bookInstance
