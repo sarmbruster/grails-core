@@ -14,7 +14,7 @@ import org.springframework.beans.PropertyAccessorFactory
 class ScaffoldingTagLib implements GrailsApplicationAware {
 
     GrailsApplication grailsApplication
-    def groovyPagesTemplateEngine
+    GrailsConventionGroovyPageLocator groovyPageLocator
 
     Closure scaffoldInput = { attrs ->
         if (!attrs.bean) throwTagError("Tag [scaffoldInput] is missing required attribute [bean]")
@@ -22,15 +22,7 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
 
         def bean = resolveBean(attrs)
         def propertyPath = attrs.property
-        def propertyAccessor = org.codehaus.groovy.grails.plugins.beanfields.BeanPropertyAccessor.forBeanAndPath(grailsApplication, bean, propertyPath)
-
-        // order of priority for template resolution
-        // 1: grails-app/views/controller/_<property>.gsp
-        // 2: grails-app/views/fields/_<class>.<property>.gsp
-        // 3: grails-app/views/fields/_<type>.gsp
-        // 4: grails-app/views/fields/_default.gsp
-        // TODO: implications for templates supplied by plugins
-        // TODO: recursive resolution for embedded types
+        def propertyAccessor = BeanPropertyAccessor.forBeanAndPath(grailsApplication, bean, propertyPath)
 
         def template = resolveTemplate(propertyAccessor)
 
@@ -45,17 +37,22 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
         out << render(template: template, model: model)
     }
 
-    private def resolveTemplate(def propertyAccessor) {
+    // TODO: cache the result of this lookup
+    private def resolveTemplate(BeanPropertyAccessor propertyAccessor) {
+        // order of priority for template resolution
+        // 1: grails-app/views/controller/_<property>.gsp
+        // 2: grails-app/views/fields/_<class>.<property>.gsp
+        // 3: grails-app/views/fields/_<type>.gsp
+        // 4: grails-app/views/fields/_default.gsp
+        // TODO: implications for templates supplied by plugins
         def templateResolveOrder = []
-        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views', controllerName, propertyAccessor.pathFromRoot)
-        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views/fields', "${propertyAccessor.beanType.name}.${propertyAccessor.propertyName}".toString())
-        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri('/grails-app/views/fields', propertyAccessor.type.name)
-        templateResolveOrder << '/grails-app/views/fields/default'
+        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/", controllerName, propertyAccessor.pathFromRoot)
+        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/fields", "${propertyAccessor.beanType.name}.${propertyAccessor.propertyName}".toString())
+        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/fields", propertyAccessor.type.name)
+        templateResolveOrder << "/fields/default"
 
-        // TODO: this is doing the entire resolution twice, we need to make some of the internal functionality of GroovyPagesTemplateEngine and RenderTagLib more accessible so that it can be shared by this code
         def template = templateResolveOrder.find {
-            def gspPath = grailsAttributes.getTemplateUri(it, request)
-            groovyPagesTemplateEngine.createTemplateForUri([gspPath] as String[]) != null
+            groovyPageLocator.findTemplateByPath(it)
         }
         return template
     }
