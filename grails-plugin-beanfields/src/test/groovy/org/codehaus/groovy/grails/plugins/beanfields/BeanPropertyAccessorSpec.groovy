@@ -97,7 +97,7 @@ class BeanPropertyAccessorSpec extends Specification {
 		!propertyAccessor.constraints.blank
 	}
 
-	@Unroll
+	@Unroll({ "type of '$property' is $type.name" })
 	def "resolves type of property"() {
 		given:
 		def propertyAccessor = factory.accessorFor(bean, property)
@@ -123,7 +123,7 @@ class BeanPropertyAccessorSpec extends Specification {
 		propertyAccessor.constraints.inList == ["USA", "UK", "Canada"]
 	}
 
-	@Unroll
+	@Unroll({ "label key for '$property' is '$label'" })
 	def "label key is the same as the scaffolding convention"() {
 		given:
 		def propertyAccessor = factory.accessorFor(bean, property)
@@ -139,7 +139,7 @@ class BeanPropertyAccessorSpec extends Specification {
 		author | "books[0].title" | "book.title.label"
 	}
 
-	@Unroll
+	@Unroll({ "default label for '$property' is '$label'" })
 	def "default label is the property's natural name"() {
 		given:
 		def propertyAccessor = factory.accessorFor(bean, property)
