@@ -23,7 +23,7 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
 
         def bean = resolveBean(attrs)
         def propertyPath = attrs.property
-        def propertyAccessor = BeanPropertyAccessorFactory.forBeanAndPath(bean, propertyPath)
+        def propertyAccessor = BeanPropertyAccessorFactory.accessorFor(bean, propertyPath)
 
         def template = resolveTemplate(propertyAccessor)
 

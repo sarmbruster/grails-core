@@ -30,7 +30,7 @@ class BeanPropertyAccessorFactory implements GrailsApplicationAware {
 
 	GrailsApplication grailsApplication
 
-	BeanPropertyAccessor forBeanAndPath(bean, String property) {
+	BeanPropertyAccessor accessorFor(bean, String property) {
 		def rootBeanClass = resolveDomainClass(bean.getClass())
 		def pathElements = property.tokenize(".")
 		resolvePropertyFromPathComponents(bean, PropertyAccessorFactory.forBeanPropertyAccess(bean), rootBeanClass, property, rootBeanClass, pathElements)
