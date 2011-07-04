@@ -6,6 +6,7 @@ import org.codehaus.groovy.grails.commons.GrailsDomainClass
 import org.codehaus.groovy.grails.commons.GrailsDomainClassProperty
 import org.codehaus.groovy.grails.io.support.GrailsResourceUtils
 import org.codehaus.groovy.grails.plugins.beanfields.BeanPropertyAccessor
+import org.codehaus.groovy.grails.plugins.beanfields.BeanPropertyAccessorFactory
 import org.codehaus.groovy.grails.plugins.support.aware.GrailsApplicationAware
 import org.codehaus.groovy.grails.web.pages.discovery.GrailsConventionGroovyPageLocator
 import org.springframework.beans.PropertyAccessorFactory
@@ -22,7 +23,7 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
 
         def bean = resolveBean(attrs)
         def propertyPath = attrs.property
-        def propertyAccessor = BeanPropertyAccessor.forBeanAndPath(grailsApplication, bean, propertyPath)
+        def propertyAccessor = BeanPropertyAccessorFactory.forBeanAndPath(bean, propertyPath)
 
         def template = resolveTemplate(propertyAccessor)
 

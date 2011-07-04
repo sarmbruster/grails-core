@@ -9,6 +9,7 @@ import spock.lang.*
 @Mock([Person, Address])
 class BeanPropertyAccessorSpec extends Specification {
 
+	BeanPropertyAccessorFactory factory = new BeanPropertyAccessorFactory(grailsApplication: grailsApplication)
 	def address
 	def person
 
@@ -20,7 +21,7 @@ class BeanPropertyAccessorSpec extends Specification {
 
 	def "can resolve basic property of domain class"() {
 		given:
-		def propertyAccessor = BeanPropertyAccessor.forBeanAndPath(grailsApplication, person, "name")
+		def propertyAccessor = factory.forBeanAndPath(person, "name")
 
 		expect:
 		propertyAccessor.value == person.name
@@ -36,7 +37,7 @@ class BeanPropertyAccessorSpec extends Specification {
 
 	def "resolves constraints of basic domain class property"() {
 		given:
-		def propertyAccessor = BeanPropertyAccessor.forBeanAndPath(grailsApplication, person, "name")
+		def propertyAccessor = factory.forBeanAndPath(person, "name")
 
 		expect:
 		!propertyAccessor.constraints.nullable
@@ -45,7 +46,7 @@ class BeanPropertyAccessorSpec extends Specification {
 
 	def "resolves type of property"() {
 		given:
-		def propertyAccessor = BeanPropertyAccessor.forBeanAndPath(grailsApplication, person, "dateOfBirth")
+		def propertyAccessor = factory.forBeanAndPath(person, "dateOfBirth")
 
 		expect:
 		propertyAccessor.type == Date
@@ -54,7 +55,7 @@ class BeanPropertyAccessorSpec extends Specification {
 
 	def "resolves embedded property of domain class"() {
 		given:
-		def propertyAccessor = BeanPropertyAccessor.forBeanAndPath(grailsApplication, person, "address.city")
+		def propertyAccessor = factory.forBeanAndPath(person, "address.city")
 
 		expect:
 		propertyAccessor.value == address.city
@@ -70,7 +71,7 @@ class BeanPropertyAccessorSpec extends Specification {
 
 	def "resolves constraints of embedded property"() {
 		given:
-		def propertyAccessor = BeanPropertyAccessor.forBeanAndPath(grailsApplication, person, "address.country")
+		def propertyAccessor = factory.forBeanAndPath(person, "address.country")
 
 		expect:
 		!propertyAccessor.constraints.nullable
@@ -79,7 +80,7 @@ class BeanPropertyAccessorSpec extends Specification {
 
 	def "label key is the same as the scaffolding convention"() {
 		given:
-		def propertyAccessor = BeanPropertyAccessor.forBeanAndPath(grailsApplication, person, "address.city")
+		def propertyAccessor = factory.forBeanAndPath(person, "address.city")
 
 		expect:
 		propertyAccessor.labelKey == "address.city.label"
@@ -88,7 +89,7 @@ class BeanPropertyAccessorSpec extends Specification {
 	@Unroll
 	def "default label is the property's natural name"() {
 		given:
-		def propertyAccessor = BeanPropertyAccessor.forBeanAndPath(grailsApplication, person, property)
+		def propertyAccessor = factory.forBeanAndPath(person, property)
 
 		expect:
 		propertyAccessor.defaultLabel == label
@@ -105,13 +106,15 @@ class BeanPropertyAccessorSpec extends Specification {
 		person.name = ""
 
 		and:
-		def propertyAccessor = BeanPropertyAccessor.forBeanAndPath(grailsApplication, person, "name")
+		def propertyAccessor = factory.forBeanAndPath(person, "name")
 
 		expect:
 		!person.validate()
 
 		and:
-		propertyAccessor.errors
+		propertyAccessor.errors.find {
+			it.code == "blank"
+		}
 	}
 
 }
