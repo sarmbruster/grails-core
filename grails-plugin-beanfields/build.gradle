@@ -1,3 +1,6 @@
+repositories {
+	mavenRepo(urls: "http://m2repo.spockframework.org/snapshots/")
+}
 dependencies {
     compile "commons-lang:commons-lang:$commonsLangVersion"
     compile "commons-io:commons-io:${commonsIOVersion}"
@@ -9,22 +12,13 @@ dependencies {
     compile project(":grails-plugin-gsp")
     compile project(":grails-plugin-logging")
 
+	testCompile('org.spockframework:spock-core:0.6-groovy-1.8-SNAPSHOT') {
+		transitive = false
+	}
     testCompile project(":grails-plugin-testing")
     testCompile project(":grails-plugin-validation")
     testCompile project(":grails-plugin-datasource")
     testCompile project(":grails-test-suite-base")
-
-    // Spring/Grails Datastore APIs
-    compile("org.grails:grails-datastore-gorm:$springDatastoreVersion") {
-        transitive = false
-    }
-    compile("org.springframework:spring-datastore-core:$springDatastoreVersion") {
-        transitive = false
-    }
-    compile("org.springframework:spring-datastore-simple:$springDatastoreVersion") {
-        transitive = false
-    }
-
 }
 
 jar.appendix = 'plugin-beanfields'
