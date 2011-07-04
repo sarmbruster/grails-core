@@ -74,6 +74,22 @@ class BeanPropertyAccessorSpec extends Specification {
 		propertyAccessor.persistentProperty.name == "title"
 	}
 
+	def "resolves other side of many-to-one association"() {
+		given:
+		def propertyAccessor = factory.accessorFor(author.books[0], "author.name")
+
+		expect:
+		propertyAccessor.value == author.name
+		propertyAccessor.rootBeanType == Book
+		propertyAccessor.rootBeanClass.clazz == Book
+		propertyAccessor.beanType == Author
+		propertyAccessor.beanClass.clazz == Author
+		propertyAccessor.pathFromRoot == "author.name"
+		propertyAccessor.propertyName == "name"
+		propertyAccessor.type == String
+		propertyAccessor.persistentProperty.name == "name"
+	}
+
 	def "resolves property of simple mapped association"() {
 		given:
 		def propertyAccessor = factory.accessorFor(person, "emails[home]")
@@ -86,6 +102,36 @@ class BeanPropertyAccessorSpec extends Specification {
 		propertyAccessor.propertyName == "emails"
 		propertyAccessor.type == String
 		propertyAccessor.persistentProperty.name == "emails"
+	}
+
+	def "resolves basic property when value is null"() {
+		given:
+		person.name = null
+
+		and:
+		def propertyAccessor = factory.accessorFor(person, "name")
+
+		expect:
+		propertyAccessor.value == null
+		propertyAccessor.pathFromRoot == "name"
+		propertyAccessor.propertyName == "name"
+		propertyAccessor.type == String
+		propertyAccessor.persistentProperty.name == "name"
+	}
+
+	def "resolves embedded property when intervening path is null"() {
+		given:
+		person.address = null
+
+		and:
+		def propertyAccessor = factory.accessorFor(person, "address.city")
+
+		expect:
+		propertyAccessor.value == null
+		propertyAccessor.pathFromRoot == "address.city"
+		propertyAccessor.propertyName == "city"
+		propertyAccessor.type == String
+		propertyAccessor.persistentProperty.name == "city"
 	}
 
 	def "resolves constraints of basic domain class property"() {

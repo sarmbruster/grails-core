@@ -1,11 +1,11 @@
 package org.codehaus.groovy.grails.plugins.beanfields
 
 import java.util.regex.Pattern
+import org.codehaus.groovy.grails.plugins.support.aware.GrailsApplicationAware
 import org.codehaus.groovy.grails.validation.ConstrainedProperty
 import org.springframework.validation.FieldError
 import org.codehaus.groovy.grails.commons.*
 import org.springframework.beans.*
-import org.codehaus.groovy.grails.plugins.support.aware.GrailsApplicationAware
 
 interface BeanPropertyAccessor {
 	def getRootBean()
@@ -38,7 +38,7 @@ class BeanPropertyAccessorFactory implements GrailsApplicationAware {
 
 	private BeanPropertyAccessor resolvePropertyFromPathComponents(rootBean, BeanWrapper bean, GrailsDomainClass rootBeanClass, String pathFromRoot, GrailsDomainClass beanClass, List<String> pathElements) {
 		def propertyName = pathElements.remove(0)
-		def value = bean.getPropertyValue(propertyName)
+		def value = bean?.getPropertyValue(propertyName)
 		if (pathElements.empty) {
 			def matcher = propertyName =~ INDEXED_PROPERTY_PATTERN
 			if (matcher.matches()) {
@@ -55,7 +55,7 @@ class BeanPropertyAccessorFactory implements GrailsApplicationAware {
 				persistentProperty = beanClass.getPersistentProperty(propertyName)
 			}
 			def propertyDomainClass = resolvePropertyDomainClass(persistentProperty)
-			resolvePropertyFromPathComponents(rootBean, PropertyAccessorFactory.forBeanPropertyAccess(value), rootBeanClass, pathFromRoot, propertyDomainClass, pathElements)
+			resolvePropertyFromPathComponents(rootBean, value ? PropertyAccessorFactory.forBeanPropertyAccess(value) : null, rootBeanClass, pathFromRoot, propertyDomainClass, pathElements)
 		}
 	}
 
