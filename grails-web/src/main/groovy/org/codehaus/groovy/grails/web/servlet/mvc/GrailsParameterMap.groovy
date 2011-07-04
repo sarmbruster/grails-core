@@ -29,6 +29,8 @@ import java.io.UnsupportedEncodingException
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import org.codehaus.groovy.grails.web.util.TypeConvertingMap
+import org.apache.commons.logging.LogFactory
+import org.apache.commons.logging.Log
 
 /**
  * A parameter map class that allows mixing of request parameters and controller parameters. If a controller
@@ -40,6 +42,9 @@ import org.codehaus.groovy.grails.web.util.TypeConvertingMap
  * @since Oct 24, 2005
  */
 class GrailsParameterMap extends TypeConvertingMap {
+
+    private static final Log LOG = LogFactory.getLog(GrailsParameterMap)
+    public static final String REQUEST_BODY_PARSED = "org.codehaus.groovy.grails.web.REQUEST_BODY_PARSED"
 
     private HttpServletRequest request
 
@@ -61,6 +66,20 @@ class GrailsParameterMap extends TypeConvertingMap {
     GrailsParameterMap(HttpServletRequest request) {
         this.request = request
         final Map requestMap = new LinkedHashMap(request.getParameterMap())
+        if(requestMap.size() == 0 && "PUT".equals(request.getMethod()) && request.getAttribute(REQUEST_BODY_PARSED) == null) {
+            // attempt manual parse of request body. This is here because some containers don't parse the request body automatically for PUT request
+            String contentType = request.getContentType();
+            if("application/x-www-form-urlencoded".equals(contentType)) {
+                try {
+                    def contents = request.reader.text
+                    request.setAttribute(REQUEST_BODY_PARSED, true)
+                    requestMap.putAll(org.codehaus.groovy.grails.web.util.WebUtils.fromQueryString(contents))
+                } catch (e) {
+                    LOG.error("Error processing form encoded PUT request: " + e.message, e)
+                }
+            }
+
+        }
         if (request instanceof MultipartHttpServletRequest) {
             def fileMap = request.fileMap
             for (fileName in fileMap.keySet()) {
@@ -258,36 +277,35 @@ class GrailsParameterMap extends TypeConvertingMap {
         return DefaultGroovyMethods.inspect(this.@wrappedMap)
     }
 
-    
     /**
      * Helper method for obtaining integer value from parameter
      * @param name The name of the parameter
      * @return The integer value or null if there isn't one
      */
     Character 'char'(String name) { getChar(name) }
-    
+
     /**
      * Helper method for obtaining integer value from parameter
      * @param name The name of the parameter
      * @return The integer value or null if there isn't one
      */
-    Character 'char'(String name, Character defaultValue) { 
+    Character 'char'(String name, Character defaultValue) {
         'char'(name, (Integer)defaultValue)
     }
-    
+
     /**
      * Helper method for obtaining integer value from parameter
      * @param name The name of the parameter
      * @return The integer value or null if there isn't one
      */
-    Character 'char'(String name, Integer defaultValue) { 
+    Character 'char'(String name, Integer defaultValue) {
         Character value = getChar(name)
-        if(value == null) {
+        if (value == null) {
             value = defaultValue
-        } 
+        }
         value
     }
-    
+
     /**
      * Helper method for obtaining integer value from parameter
      * @param name The name of the parameter
@@ -301,14 +319,14 @@ class GrailsParameterMap extends TypeConvertingMap {
      * @param defaultValue The default value to use if the parameter does not exist or cannot be converted to a Byte
      * @return The integer value or null if there isn't one
      */
-    Byte 'byte'(String name, Integer defaultValue) { 
+    Byte 'byte'(String name, Integer defaultValue) {
         Byte value = getByte(name)
-        if(value == null) {
+        if (value == null) {
             value = defaultValue
-        } 
+        }
         value
     }
-    
+
     /**
      * Helper method for obtaining integer value from parameter
      * @param name The name of the parameter
@@ -324,13 +342,12 @@ class GrailsParameterMap extends TypeConvertingMap {
      */
     Integer 'int'(String name, Integer defaultValue) {
         Integer value = getInt(name)
-        if(value == null) {
+        if (value == null) {
             value = defaultValue
-        } 
+        }
         value
     }
-    
-    
+
     /**
      * Helper method for obtaining long value from parameter
      * @param name The name of the parameter
@@ -346,12 +363,12 @@ class GrailsParameterMap extends TypeConvertingMap {
      */
     Long 'long'(String name, Long defaultValue) {
         Long value = getLong(name)
-        if(value == null) {
+        if (value == null) {
             value = defaultValue
-        } 
+        }
         value
     }
-    
+
     /**
      * Helper method for obtaining short value from parameter
      * @param name The name of the parameter
@@ -365,14 +382,14 @@ class GrailsParameterMap extends TypeConvertingMap {
      * @param defaultValue The default value to use if the parameter does not exist or cannot be converted to a Short
      * @return The short value or null if there isn't one
      */
-    Short 'short'(String name, Integer defaultValue) { 
+    Short 'short'(String name, Integer defaultValue) {
         Short value = getShort(name)
-        if(value == null) {
+        if (value == null) {
             value = defaultValue
-        } 
+        }
         value
     }
-    
+
     /**
      * Helper method for obtaining double value from parameter
      * @param name The name of the parameter
@@ -386,14 +403,14 @@ class GrailsParameterMap extends TypeConvertingMap {
      * @param defaultValue The default value to use if the parameter does not exist or cannot be converted to a Double
      * @return The double value or null if there isn't one
      */
-    Double 'double'(String name, Double defaultValue) { 
+    Double 'double'(String name, Double defaultValue) {
         Double value = getDouble(name)
-        if(value == null) {
+        if (value == null) {
             value = defaultValue
         }
         value
     }
-    
+
     /**
      * Helper method for obtaining float value from parameter
      * @param name The name of the parameter
@@ -407,14 +424,14 @@ class GrailsParameterMap extends TypeConvertingMap {
      * @param defaultValue The default value to use if the parameter does not exist or cannot be converted to a Float
      * @return The double value or null if there isn't one
      */
-    Float 'float'(String name, Float defaultValue) { 
+    Float 'float'(String name, Float defaultValue) {
         Float value = getFloat(name)
-        if(value == null) {
+        if (value == null) {
             value = defaultValue
-        } 
+        }
         value
     }
-    
+
     /**
      * Helper method for obtaining float value from parameter
      * @param name The name of the parameter
@@ -431,14 +448,14 @@ class GrailsParameterMap extends TypeConvertingMap {
      */
     Boolean 'boolean'(String name, Boolean defaultValue) {
         Boolean value
-        if(containsKey(name)) {
+        if (containsKey(name)) {
             value = getBoolean(name)
         } else {
             value = defaultValue
         }
         value
     }
-    
+
     /**
      * Obtains a list of values from parameter.
      * @param name The name of the parameter

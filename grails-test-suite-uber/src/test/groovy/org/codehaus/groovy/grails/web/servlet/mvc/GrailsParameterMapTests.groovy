@@ -7,6 +7,29 @@ class GrailsParameterMapTests extends GroovyTestCase {
     GrailsParameterMap theMap
     MockHttpServletRequest mockRequest = new MockHttpServletRequest()
 
+    void testParseRequestBodyForPutRequest() {
+        def request = new MockHttpServletRequest()
+        request.content = 'foo=bar&one=two'.bytes
+        request.method = 'PUT'
+        request.contentType = "application/x-www-form-urlencoded"
+
+        def params = new GrailsParameterMap(request)
+
+        assert 'bar' == params.foo
+        assert 'two' == params.one
+
+
+        params = new GrailsParameterMap(request)
+        assert params.foo == null // should be null, request can't be parsed twice
+
+        request.content = 'foo='.bytes
+        request.removeAttribute(GrailsParameterMap.REQUEST_BODY_PARSED)
+
+        params = new GrailsParameterMap(request)
+
+        assert '' == params.foo
+    }
+
     void testPlusOperator() {
         mockRequest.addParameter("album", "Foxtrot")
 
@@ -64,7 +87,7 @@ class GrailsParameterMapTests extends GroovyTestCase {
         assertEquals 0, map.byte('zero', 42)
         assertEquals 42, map.byte('bad', 42)
         assertEquals 42, map.byte('nonexistent', 42)
-        
+
         assertEquals '1', map.char('one')
         assertNull map.char('longNumber')
         assertNull map.char("test")
