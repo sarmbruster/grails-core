@@ -6,20 +6,27 @@ import grails.test.mixin.*
 import spock.lang.*
 
 @TestFor(ScaffoldingTagLib)
-@Mock([Person, Address])
+@Mock([Person, Address, Author, Book])
 class BeanPropertyAccessorSpec extends Specification {
 
 	BeanPropertyAccessorFactory factory = new BeanPropertyAccessorFactory(grailsApplication: grailsApplication)
-	def address
-	def person
+	@Shared def address
+	@Shared def person
+	@Shared def author
 
 	def setup() {
 		address = new Address(street: "94 Evergreen Terrace", city: "Springfield", country: "USA")
-		person = new Person(name: "Bart Simpson", password: "bartman", gender: "Male", dateOfBirth: new Date(87, 3, 19), address: address)
+		person = new Person(name: "Bart Simpson", password: "bartman", gender: "Male", dateOfBirth: new Date(87, 3, 19), address: address, emails: [home: "bart@thesimpsons.net", school: "bart.simpson@springfieldelementary.edu"])
 		person.save(failOnError: true)
+
+		author = new Author(name: "William Gibson")
+		author.addToBooks new Book(title: "Pattern Recognition")
+		author.addToBooks new Book(title: "Spook Country")
+		author.addToBooks new Book(title: "Zero History")
+		author.save(failOnError: true)
 	}
 
-	def "can resolve basic property of domain class"() {
+	def "resolves basic property"() {
 		given:
 		def propertyAccessor = factory.accessorFor(person, "name")
 
@@ -35,25 +42,7 @@ class BeanPropertyAccessorSpec extends Specification {
 		propertyAccessor.persistentProperty.name == "name"
 	}
 
-	def "resolves constraints of basic domain class property"() {
-		given:
-		def propertyAccessor = factory.accessorFor(person, "name")
-
-		expect:
-		!propertyAccessor.constraints.nullable
-		!propertyAccessor.constraints.blank
-	}
-
-	def "resolves type of property"() {
-		given:
-		def propertyAccessor = factory.accessorFor(person, "dateOfBirth")
-
-		expect:
-		propertyAccessor.type == Date
-		propertyAccessor.value == new Date(87, 3, 19)
-	}
-
-	def "resolves embedded property of domain class"() {
+	def "resolves embedded property"() {
 		given:
 		def propertyAccessor = factory.accessorFor(person, "address.city")
 
@@ -69,6 +58,62 @@ class BeanPropertyAccessorSpec extends Specification {
 		propertyAccessor.persistentProperty.name == "city"
 	}
 
+	def "resolves property of indexed association"() {
+		given:
+		def propertyAccessor = factory.accessorFor(author, "books[0].title")
+
+		expect:
+		propertyAccessor.value == "Pattern Recognition"
+		propertyAccessor.rootBeanType == Author
+		propertyAccessor.rootBeanClass.clazz == Author
+		propertyAccessor.beanType == Book
+		propertyAccessor.beanClass.clazz == Book
+		propertyAccessor.pathFromRoot == "books[0].title"
+		propertyAccessor.propertyName == "title"
+		propertyAccessor.type == String
+		propertyAccessor.persistentProperty.name == "title"
+	}
+
+	def "resolves property of simple mapped association"() {
+		given:
+		def propertyAccessor = factory.accessorFor(person, "emails[home]")
+
+		expect:
+		propertyAccessor.value == "bart@thesimpsons.net"
+		propertyAccessor.rootBeanType == Person
+		propertyAccessor.beanType == Person
+		propertyAccessor.pathFromRoot == "emails[home]"
+		propertyAccessor.propertyName == "emails"
+		propertyAccessor.type == String
+		propertyAccessor.persistentProperty.name == "emails"
+	}
+
+	def "resolves constraints of basic domain class property"() {
+		given:
+		def propertyAccessor = factory.accessorFor(person, "name")
+
+		expect:
+		!propertyAccessor.constraints.nullable
+		!propertyAccessor.constraints.blank
+	}
+
+	@Unroll
+	def "resolves type of property"() {
+		given:
+		def propertyAccessor = factory.accessorFor(bean, property)
+
+		expect:
+		propertyAccessor.type == type
+
+		where:
+		bean   | property         | type
+		person | "dateOfBirth"    | Date
+		person | "address"        | Address
+		person | "address.city"   | String
+		author | "books"          | List
+		author | "books[0].title" | String
+	}
+
 	def "resolves constraints of embedded property"() {
 		given:
 		def propertyAccessor = factory.accessorFor(person, "address.country")
@@ -78,27 +123,37 @@ class BeanPropertyAccessorSpec extends Specification {
 		propertyAccessor.constraints.inList == ["USA", "UK", "Canada"]
 	}
 
+	@Unroll
 	def "label key is the same as the scaffolding convention"() {
 		given:
-		def propertyAccessor = factory.accessorFor(person, "address.city")
+		def propertyAccessor = factory.accessorFor(bean, property)
 
 		expect:
-		propertyAccessor.labelKey == "address.city.label"
+		propertyAccessor.labelKey == label
+
+		where:
+		bean   | property         | label
+		person | "name"           | "person.name.label"
+		person | "address"        | "person.address.label"
+		person | "address.city"   | "address.city.label"
+		author | "books[0].title" | "book.title.label"
 	}
 
 	@Unroll
 	def "default label is the property's natural name"() {
 		given:
-		def propertyAccessor = factory.accessorFor(person, property)
+		def propertyAccessor = factory.accessorFor(bean, property)
 
 		expect:
 		propertyAccessor.defaultLabel == label
 
 		where:
-		property       | label
-		"name"         | "Name"
-		"dateOfBirth"  | "Date Of Birth"
-		"address.city" | "City"
+		bean   | property         | label
+		person | "name"           | "Name"
+		person | "dateOfBirth"    | "Date Of Birth"
+		person | "address"        | "Address"
+		person | "address.city"   | "City"
+		author | "books[0].title" | "Title"
 	}
 
 	def "resolves errors for a basic property"() {
@@ -129,14 +184,31 @@ class BeanPropertyAccessorSpec extends Specification {
 		propertyAccessor.errors.first().code == "inList"
 	}
 
+	def "resolves errors for an indexed property"() {
+		given:
+		author.books[0].title = ""
+
+		and:
+		def propertyAccessor = factory.accessorFor(author, "books[0].title")
+
+		expect:
+		!author.validate()
+
+		and:
+		propertyAccessor.errors.first().code == "blank"
+	}
+
 }
 
+// classes for testing embedded and simple collection properties
 @Entity
 class Person {
 	String name
 	String password
 	String gender
 	Date dateOfBirth
+	Map emails = [:]
+	static hasMany = [emails: String]
 	Address address
 	static embedded = ['address']
 	static constraints = {
@@ -153,5 +225,25 @@ class Address {
 		street blank: false
 		city blank: false
 		country inList: ["USA", "UK", "Canada"]
+	}
+}
+
+// classes for testing indexed associations
+@Entity
+class Author {
+	String name
+	List books
+	static hasMany = [books: Book]
+	static constraints = {
+		name blank: false
+	}
+}
+
+@Entity
+class Book {
+	String title
+	static belongsTo = [author: Author]
+	static constraints = {
+		title blank: false
 	}
 }
