@@ -179,10 +179,10 @@ class BeanPropertyAccessorSpec extends Specification {
 
 		where:
 		bean   | property         | label
-		person | "name"           | "person.name.label"
-		person | "address"        | "person.address.label"
-		person | "address.city"   | "address.city.label"
-		author | "books[0].title" | "book.title.label"
+		person | "name"           | "Person.name.label"
+		person | "address"        | "Person.address.label"
+		person | "address.city"   | "Address.city.label"
+		author | "books[0].title" | "Book.title.label"
 	}
 
 	@Unroll({ "default label for '$property' is '$label'" })

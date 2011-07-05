@@ -112,7 +112,8 @@ class BeanPropertyAccessorFactory implements GrailsApplicationAware {
 		}
 
 		String getLabelKey() {
-			"${beanClass.propertyName}.${propertyName}.label"
+			println "labelKey: ${beanClass.name}.${propertyName}.label"
+			"${beanClass.name}.${propertyName}.label"
 		}
 
 		String getDefaultLabel() {

@@ -1,21 +1,24 @@
 package org.codehaus.groovy.grails.plugins.beanfields.taglib
 
 import grails.artefact.Artefact
-import org.codehaus.groovy.grails.commons.GrailsApplication
-import org.codehaus.groovy.grails.commons.GrailsDomainClass
-import org.codehaus.groovy.grails.commons.GrailsDomainClassProperty
 import org.codehaus.groovy.grails.io.support.GrailsResourceUtils
-import org.codehaus.groovy.grails.plugins.beanfields.BeanPropertyAccessor
-import org.codehaus.groovy.grails.plugins.beanfields.BeanPropertyAccessorFactory
 import org.codehaus.groovy.grails.plugins.support.aware.GrailsApplicationAware
 import org.codehaus.groovy.grails.web.pages.discovery.GrailsConventionGroovyPageLocator
 import org.springframework.beans.PropertyAccessorFactory
+import org.codehaus.groovy.grails.commons.*
+import org.codehaus.groovy.grails.plugins.beanfields.*
+import javax.annotation.PostConstruct
 
 @Artefact("TagLibrary")
 class ScaffoldingTagLib implements GrailsApplicationAware {
 
     GrailsApplication grailsApplication
     GrailsConventionGroovyPageLocator groovyPageLocator
+	BeanPropertyAccessorFactory beanPropertyAccessorFactory
+
+	@PostConstruct void initialize() {
+		beanPropertyAccessorFactory = new BeanPropertyAccessorFactory(grailsApplication: grailsApplication)
+	}
 
     Closure scaffoldInput = { attrs ->
         if (!attrs.bean) throwTagError("Tag [scaffoldInput] is missing required attribute [bean]")
@@ -23,17 +26,17 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
 
         def bean = resolveBean(attrs)
         def propertyPath = attrs.property
-        def propertyAccessor = BeanPropertyAccessorFactory.accessorFor(bean, propertyPath)
+        def propertyAccessor = beanPropertyAccessorFactory.accessorFor(bean, propertyPath)
 
         def template = resolveTemplate(propertyAccessor)
 
         def model = [:]
-        model.bean = bean
-        model.property = propertyPath
-        model.label = resolveLabelText(propertyAccessor.persistentProperty, attrs)
+        model.bean = propertyAccessor.rootBean
+        model.property = propertyAccessor.pathFromRoot
+        model.label = resolveLabelText(propertyAccessor, attrs)
         model.value = attrs.value ?: propertyAccessor.value ?: attrs.default
         model.constraints = propertyAccessor.constraints
-        model.errors = bean.errors.getFieldErrors(propertyPath).collect { message(error: it) }
+        model.errors = propertyAccessor.errors.collect { message(error: it) }
 
         out << render(template: template, model: model)
     }
@@ -76,12 +79,12 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
         resolvePropertyFromPathComponents(PropertyAccessorFactory.forBeanPropertyAccess(bean), domainClass, path)
     }
 
-    private String resolveLabelText(GrailsDomainClassProperty property, Map attrs) {
+    private String resolveLabelText(BeanPropertyAccessor propertyAccessor, Map attrs) {
         def label = attrs.label
         if (!label && attrs.labelKey) {
             label = message(code: attrs.labelKey)
         }
-        label ?: message(code: "${property.domainClass.name}.${property.name}.label", default: property.naturalName)
+        label ?: message(code: propertyAccessor.labelKey, default: propertyAccessor.defaultLabel)
     }
 }
 
