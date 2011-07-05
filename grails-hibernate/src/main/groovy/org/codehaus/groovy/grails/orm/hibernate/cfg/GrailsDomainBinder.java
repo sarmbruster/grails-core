@@ -1764,7 +1764,7 @@ public final class GrailsDomainBinder {
 
         PropertyConfig propertyConfig = getPropertyConfig(property);
         if (propertyConfig != null && !propertyConfig.getColumns().isEmpty()) {
-            bindIndex(column, propertyConfig.getColumns().get(0), t);
+            bindIndex(columnName, column, propertyConfig.getColumns().get(0), t);
         }
     }
 
@@ -1955,7 +1955,8 @@ public final class GrailsDomainBinder {
         bindManyToOneValues(property, manyToOne);
         GrailsDomainClass refDomainClass = property.isManyToMany() ? property.getDomainClass() : property.getReferencedDomainClass();
         Mapping mapping = getMapping(refDomainClass);
-        if (hasCompositeIdentifier(mapping)) {
+        boolean isComposite = hasCompositeIdentifier(mapping);
+        if (isComposite) {
             CompositeIdentity ci = (CompositeIdentity) mapping.getIdentity();
             bindCompositeIdentifierToManyToOne(property, manyToOne, ci, refDomainClass, path, sessionFactoryBeanName);
         }
@@ -1988,7 +1989,7 @@ public final class GrailsDomainBinder {
         }
 
         PropertyConfig config = getPropertyConfig(property);
-        if (property.isOneToOne()) {
+        if (property.isOneToOne() && !isComposite) {
             manyToOne.setAlternateUniqueKey(true);
             Column c = getColumnForSimpleValue(manyToOne);
             if (config != null) {
@@ -2004,17 +2005,19 @@ public final class GrailsDomainBinder {
             SimpleValue value, CompositeIdentity compositeId, GrailsDomainClass refDomainClass,
             String path, String sessionFactoryBeanName) {
 
-      NamingStrategy namingStrategy = getNamingStrategy(sessionFactoryBeanName);
+        NamingStrategy namingStrategy = getNamingStrategy(sessionFactoryBeanName);
 
         String[] propertyNames = compositeId.getPropertyNames();
         PropertyConfig config = getPropertyConfig(property);
         if (config == null) config = new PropertyConfig();
 
-        for (String propertyName : propertyNames) {
-            final ColumnConfig cc = new ColumnConfig();
-            cc.setName(addUnderscore(namingStrategy.classToTableName(refDomainClass.getShortName()),
-                       getDefaultColumnName(refDomainClass.getPropertyByName(propertyName), sessionFactoryBeanName)));
-            config.getColumns().add(cc);
+        if(config.getColumns().size() != propertyNames.length) {
+            for (String propertyName : propertyNames) {
+                final ColumnConfig cc = new ColumnConfig();
+                cc.setName(addUnderscore(namingStrategy.classToTableName(refDomainClass.getShortName()),
+                        getDefaultColumnName(refDomainClass.getPropertyByName(propertyName), sessionFactoryBeanName)));
+                config.getColumns().add(cc);
+            }
         }
         bindSimpleValue(property, value, path, config, sessionFactoryBeanName);
     }
@@ -2482,7 +2485,7 @@ public final class GrailsDomainBinder {
             }
         }
 
-        bindIndex(column, cc, table);
+        bindIndex(columnName, column, cc, table);
 
         if (!property.getDomainClass().isRoot()) {
             Mapping mapping = getMapping(property.getDomainClass());
@@ -2522,12 +2525,22 @@ public final class GrailsDomainBinder {
         }
     }
 
-    private static void bindIndex(Column column, ColumnConfig cc, Table table) {
+    private static void bindIndex(String columnName, Column column, ColumnConfig cc, Table table) {
         if (cc == null) {
             return;
         }
 
-        String indexDefinition = cc.getIndex();
+        Object indexObj = cc.getIndex();
+        String indexDefinition = null;
+        if(indexObj instanceof Boolean) {
+            Boolean b = (Boolean) indexObj;
+            if(b) {
+               indexDefinition = columnName + "_idx";
+            }
+        }
+        else if(indexObj != null) {
+            indexDefinition = indexObj.toString();
+        }
         if (indexDefinition == null) {
             return;
         }

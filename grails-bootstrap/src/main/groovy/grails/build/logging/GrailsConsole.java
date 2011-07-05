@@ -34,6 +34,7 @@ import jline.Terminal;
 import jline.UnsupportedTerminal;
 import jline.WindowsTerminal;
 
+import org.apache.tools.ant.BuildException;
 import org.codehaus.groovy.grails.cli.interactive.CandidateListCompletionHandler;
 import org.codehaus.groovy.grails.cli.logging.GrailsConsolePrintStream;
 import org.codehaus.groovy.runtime.DefaultGroovyMethods;
@@ -59,6 +60,7 @@ public class GrailsConsole {
     public static final String SPACE = " ";
     public static final String ERROR = "Error";
     public static final String WARNING = "Warning";
+    public static final String STACKTRACE_MESSAGE = " (Use --stacktrace to see the full trace)";
     private StringBuilder maxIndicatorString;
     private int cursorMove;
 
@@ -411,10 +413,10 @@ public class GrailsConsole {
         try {
             if ((verbose||stacktrace) && error != null) {
                 printStackTrace(msg, error);
-                error(ERROR, msg);
+                error(ERROR, msg );
             }
             else {
-                error(ERROR, msg);
+                error(ERROR, msg + STACKTRACE_MESSAGE);
             }
         } finally {
             postPrintMessage();
@@ -432,7 +434,11 @@ public class GrailsConsole {
     }
 
     private void printStackTrace(String message, Throwable error) {
-        StackTraceUtils.deepSanitize(error);
+        if((error instanceof BuildException) && error.getCause() != null) {
+            error = error.getCause();
+        }
+        if(!isVerbose())
+            StackTraceUtils.deepSanitize(error);
         StringWriter sw = new StringWriter();
         PrintWriter ps = new PrintWriter(sw);
         if (message != null) {
