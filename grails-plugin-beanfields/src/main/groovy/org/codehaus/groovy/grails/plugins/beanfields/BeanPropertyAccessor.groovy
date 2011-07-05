@@ -9,18 +9,31 @@ import org.springframework.beans.*
 
 interface BeanPropertyAccessor {
 	def getRootBean()
+
 	GrailsDomainClass getRootBeanClass()
+
 	String getPathFromRoot()
+
 	GrailsDomainClass getBeanClass()
+
 	String getPropertyName()
+
 	def getValue()
+
 	Class getRootBeanType()
+
 	Class getBeanType()
+
 	Class getType()
+
 	GrailsDomainClassProperty getPersistentProperty()
+
 	ConstrainedProperty getConstraints()
+
 	String getLabelKey()
+
 	String getDefaultLabel()
+
 	List<FieldError> getErrors()
 }
 
@@ -100,7 +113,13 @@ class BeanPropertyAccessorFactory implements GrailsApplicationAware {
 		}
 
 		Class getType() {
-			persistentProperty.type
+			boolean isIndexed = pathFromRoot =~ /\w+\[.*?\]$/
+			boolean isCollection = persistentProperty.isBasicCollectionType() || persistentProperty.isAssociation()
+			if (isIndexed && isCollection) {
+				persistentProperty.referencedPropertyType
+			} else {
+				persistentProperty.type
+			}
 		}
 
 		GrailsDomainClassProperty getPersistentProperty() {
