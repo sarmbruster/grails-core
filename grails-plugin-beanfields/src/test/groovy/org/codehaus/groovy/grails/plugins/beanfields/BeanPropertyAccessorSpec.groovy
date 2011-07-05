@@ -216,6 +216,7 @@ class BeanPropertyAccessorSpec extends Specification {
 		propertyAccessor.errors.first().code == "blank"
 	}
 
+    @Issue("http://jira.grails.org/browse/GRAILS-7713")
 	def "resolves errors for an embedded property"() {
 		given:
 		person.address.country = "Australia"
@@ -230,6 +231,7 @@ class BeanPropertyAccessorSpec extends Specification {
 		propertyAccessor.errors.first().code == "inList"
 	}
 
+    @Issue("http://jira.grails.org/browse/GRAILS-7713")
 	def "resolves errors for an indexed property"() {
 		given:
 		author.books[0].title = ""

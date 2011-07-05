@@ -1,13 +1,14 @@
 package org.codehaus.groovy.grails.plugins.beanfields.taglib
 
+import org.codehaus.groovy.grails.plugins.DefaultGrailsPlugin
+import org.codehaus.groovy.grails.plugins.beanfields.BeanfieldsGrailsPlugin
 import org.codehaus.groovy.grails.plugins.web.taglib.RenderTagLib
 import org.codehaus.groovy.grails.support.MockStringResourceLoader
+import org.codehaus.groovy.grails.web.taglib.AbstractGrailsTagTests
 import org.codehaus.groovy.grails.web.taglib.exceptions.GrailsTagException
 import org.springframework.web.servlet.support.RequestContextUtils
-import org.codehaus.groovy.grails.plugins.beanfields.BeanfieldsGrailsPlugin
-import org.codehaus.groovy.grails.plugins.DefaultGrailsPlugin
 
-class ScaffoldingTagLibTests extends org.codehaus.groovy.grails.web.taglib.AbstractGrailsTagTests {
+class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
 
     def personInstance
     def resourceLoader
@@ -209,24 +210,4 @@ class ScaffoldingTagLibTests extends org.codehaus.groovy.grails.web.taglib.Abstr
 
         assert applyTemplate('<g:scaffoldInput bean="personInstance" property="address.city"/>', [personInstance: personInstance]) == "CLASS AND PROPERTY TEMPLATE"
     }
-
-    void testRendersEmbeddedProperty() {
-        resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", 'bean=${bean.getClass().name}, property=${property}, value=${value}')
-
-        assert applyTemplate('<g:scaffoldInput bean="personInstance" property="address.city"/>', [personInstance: personInstance]) == "bean=Person, property=address.city, value=Springfield"
-    }
-
-    void testRendersEmbeddedPropertyWithErrors() {
-        resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", '<g:each var="error" in="${errors}"><em>${error}</em></g:each>')
-        personInstance.errors.rejectValue("address.city", "invalid")
-
-        assert applyTemplate('<g:scaffoldInput bean="personInstance" property="address.city"/>', [personInstance: personInstance]) == "<em>invalid</em>"
-    }
-
-    void testEmbeddedClassConstraintsArePassedToTemplate() {
-        resourceLoader.registerMockResource("/grails-app/views/fields/_default.gsp", 'inList=${constraints.inList}')
-
-        assert applyTemplate('<g:scaffoldInput bean="personInstance" property="address.country"/>', [personInstance: personInstance]) == "inList=[USA, UK, Canada]"
-    }
-
 }
