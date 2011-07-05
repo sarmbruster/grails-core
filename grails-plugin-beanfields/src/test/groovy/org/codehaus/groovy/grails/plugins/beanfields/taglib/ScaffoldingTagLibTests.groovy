@@ -41,10 +41,10 @@ class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
     void setUp() {
         super.setUp()
 
-        def plugin = new DefaultGrailsPlugin(BeanfieldsGrailsPlugin, grailsApplication)
-        mockManager.registerMockPlugin(plugin)
-        plugin.manager = mockManager
-        plugin.doWithRuntimeConfiguration(springConfig)
+//        def plugin = new DefaultGrailsPlugin(BeanfieldsGrailsPlugin, grailsApplication)
+//        mockManager.registerMockPlugin(plugin)
+//        plugin.manager = mockManager
+//        plugin.doWithRuntimeConfiguration(springConfig)
 
         resourceLoader = new MockStringResourceLoader()
         appCtx.groovyPagesTemplateEngine.resourceLoader = resourceLoader
