@@ -7,34 +7,62 @@ import org.springframework.validation.FieldError
 import org.codehaus.groovy.grails.commons.*
 import org.springframework.beans.*
 
-interface BeanPropertyAccessor {
-	def getRootBean()
+class BeanPropertyAccessor {
 
-	GrailsDomainClass getRootBeanClass()
+	final rootBean
+	final GrailsDomainClass rootBeanClass
+	final String pathFromRoot
+	GrailsDomainClass beanClass
+	String propertyName
+	def value
 
-	String getPathFromRoot()
+	BeanPropertyAccessor(rootBean, GrailsDomainClass rootBeanClass, String pathFromRoot) {
+		this.rootBean = rootBean
+		this.rootBeanClass = rootBeanClass
+		this.pathFromRoot = pathFromRoot
+		this.beanClass = beanClass
+		this.propertyName = propertyName
+		this.value = value
+	}
 
-	GrailsDomainClass getBeanClass()
+	Class getRootBeanType() {
+		rootBeanClass.clazz
+	}
 
-	String getPropertyName()
+	Class getBeanType() {
+		beanClass.clazz
+	}
 
-	def getValue()
+	Class getType() {
+		boolean isIndexed = pathFromRoot =~ /\w+\[.*?\]$/
+		boolean isCollection = persistentProperty.isBasicCollectionType() || persistentProperty.isAssociation()
+		if (isIndexed && isCollection) {
+			persistentProperty.referencedPropertyType
+		} else {
+			persistentProperty.type
+		}
+	}
 
-	Class getRootBeanType()
+	GrailsDomainClassProperty getPersistentProperty() {
+		beanClass.getPersistentProperty(propertyName)
+	}
 
-	Class getBeanType()
+	ConstrainedProperty getConstraints() {
+		beanClass.constrainedProperties[propertyName]
+	}
 
-	Class getType()
+	String getLabelKey() {
+		"${beanClass.clazz.simpleName}.${propertyName}.label"
+	}
 
-	GrailsDomainClassProperty getPersistentProperty()
+	String getDefaultLabel() {
+		persistentProperty.naturalName
+	}
 
-	ConstrainedProperty getConstraints()
+	List<FieldError> getErrors() {
+		rootBean.errors.getFieldErrors(pathFromRoot)
+	}
 
-	String getLabelKey()
-
-	String getDefaultLabel()
-
-	List<FieldError> getErrors()
 }
 
 class BeanPropertyAccessorFactory implements GrailsApplicationAware {
@@ -43,32 +71,25 @@ class BeanPropertyAccessorFactory implements GrailsApplicationAware {
 
 	GrailsApplication grailsApplication
 
-	BeanPropertyAccessor accessorFor(bean, String property) {
+	BeanPropertyAccessor accessorFor(bean, String propertyPath) {
 		def rootBeanClass = resolveDomainClass(bean.getClass())
-		def pathElements = property.tokenize(".")
-		resolvePropertyFromPathComponents(bean, PropertyAccessorFactory.forBeanPropertyAccess(bean), rootBeanClass, property, rootBeanClass, pathElements)
+		def propertyAccessor = new BeanPropertyAccessor(bean, rootBeanClass, propertyPath)
+		def pathElements = propertyPath.tokenize(".")
+		resolvePropertyFromPathComponents(propertyAccessor, PropertyAccessorFactory.forBeanPropertyAccess(bean), rootBeanClass, pathElements)
 	}
 
-	private BeanPropertyAccessor resolvePropertyFromPathComponents(rootBean, BeanWrapper bean, GrailsDomainClass rootBeanClass, String pathFromRoot, GrailsDomainClass beanClass, List<String> pathElements) {
+	private BeanPropertyAccessor resolvePropertyFromPathComponents(BeanPropertyAccessor propertyAccessor, BeanWrapper beanWrapper, GrailsDomainClass beanClass, List<String> pathElements) {
 		def propertyName = pathElements.remove(0)
-		def value = bean?.getPropertyValue(propertyName)
+		def value = beanWrapper?.getPropertyValue(propertyName)
 		if (pathElements.empty) {
-			def matcher = propertyName =~ INDEXED_PROPERTY_PATTERN
-			if (matcher.matches()) {
-				new BeanPropertyAccessorImpl(rootBean, rootBeanClass, pathFromRoot, beanClass, matcher[0][1], value)
-			} else {
-				new BeanPropertyAccessorImpl(rootBean, rootBeanClass, pathFromRoot, beanClass, propertyName, value)
-			}
+			propertyAccessor.beanClass = beanClass
+			propertyAccessor.value = value
+			propertyAccessor.propertyName = stripIndex(propertyName)
+			return propertyAccessor
 		} else {
-			def persistentProperty
-			def matcher = propertyName =~ INDEXED_PROPERTY_PATTERN
-			if (matcher.matches()) {
-				persistentProperty = beanClass.getPersistentProperty(matcher[0][1])
-			} else {
-				persistentProperty = beanClass.getPersistentProperty(propertyName)
-			}
+			def persistentProperty = beanClass.getPersistentProperty(stripIndex(propertyName))
 			def propertyDomainClass = resolvePropertyDomainClass(persistentProperty)
-			resolvePropertyFromPathComponents(rootBean, value ? PropertyAccessorFactory.forBeanPropertyAccess(value) : null, rootBeanClass, pathFromRoot, propertyDomainClass, pathElements)
+			return resolvePropertyFromPathComponents(propertyAccessor, value ? PropertyAccessorFactory.forBeanPropertyAccess(value) : null, propertyDomainClass, pathElements)
 		}
 	}
 
@@ -86,61 +107,8 @@ class BeanPropertyAccessorFactory implements GrailsApplicationAware {
 		grailsApplication.getDomainClass(beanClass.name)
 	}
 
-	static class BeanPropertyAccessorImpl implements BeanPropertyAccessor {
-
-		final rootBean
-		final GrailsDomainClass rootBeanClass
-		final String pathFromRoot
-		final GrailsDomainClass beanClass
-		final String propertyName
-		final value
-
-		BeanPropertyAccessorImpl(rootBean, GrailsDomainClass rootBeanClass, String pathFromRoot, GrailsDomainClass beanClass, String propertyName, value) {
-			this.rootBean = rootBean
-			this.rootBeanClass = rootBeanClass
-			this.pathFromRoot = pathFromRoot
-			this.beanClass = beanClass
-			this.propertyName = propertyName
-			this.value = value
-		}
-
-		Class getRootBeanType() {
-			rootBeanClass.clazz
-		}
-
-		Class getBeanType() {
-			beanClass.clazz
-		}
-
-		Class getType() {
-			boolean isIndexed = pathFromRoot =~ /\w+\[.*?\]$/
-			boolean isCollection = persistentProperty.isBasicCollectionType() || persistentProperty.isAssociation()
-			if (isIndexed && isCollection) {
-				persistentProperty.referencedPropertyType
-			} else {
-				persistentProperty.type
-			}
-		}
-
-		GrailsDomainClassProperty getPersistentProperty() {
-			beanClass.getPersistentProperty(propertyName)
-		}
-
-		ConstrainedProperty getConstraints() {
-			beanClass.constrainedProperties[propertyName]
-		}
-
-		String getLabelKey() {
-			"${beanClass.clazz.simpleName}.${propertyName}.label"
-		}
-
-		String getDefaultLabel() {
-			persistentProperty.naturalName
-		}
-
-		List<FieldError> getErrors() {
-			rootBean.errors.getFieldErrors(pathFromRoot)
-		}
-
+	private String stripIndex(String propertyName) {
+		def matcher = propertyName =~ INDEXED_PROPERTY_PATTERN
+		matcher.matches() ? matcher[0][1] : propertyName
 	}
 }
