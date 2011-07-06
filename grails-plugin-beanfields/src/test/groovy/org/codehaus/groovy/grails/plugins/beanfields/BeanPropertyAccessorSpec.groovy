@@ -2,6 +2,7 @@ package org.codehaus.groovy.grails.plugins.beanfields
 
 import grails.persistence.Entity
 import org.codehaus.groovy.grails.plugins.beanfields.taglib.ScaffoldingTagLib
+import org.springframework.beans.NotReadablePropertyException
 import grails.test.mixin.*
 import spock.lang.*
 
@@ -24,6 +25,14 @@ class BeanPropertyAccessorSpec extends Specification {
 		author.addToBooks new Book(title: "Spook Country")
 		author.addToBooks new Book(title: "Zero History")
 		author.save(failOnError: true)
+	}
+
+	def "fails sensibly when given an invalid property path"() {
+		when:
+		factory.accessorFor(person, "invalid")
+
+		then:
+		thrown NotReadablePropertyException
 	}
 
 	def "resolves basic property"() {
