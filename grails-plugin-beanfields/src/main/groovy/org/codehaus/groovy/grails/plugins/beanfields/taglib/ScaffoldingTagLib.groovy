@@ -12,6 +12,8 @@ import javax.annotation.PostConstruct
 @Artefact("TagLibrary")
 class ScaffoldingTagLib implements GrailsApplicationAware {
 
+	static namespace = "form"
+
     GrailsApplication grailsApplication
     GrailsConventionGroovyPageLocator groovyPageLocator
 	BeanPropertyAccessorFactory beanPropertyAccessorFactory
@@ -20,9 +22,9 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
 		beanPropertyAccessorFactory = new BeanPropertyAccessorFactory(grailsApplication: grailsApplication)
 	}
 
-    Closure scaffoldInput = { attrs ->
-        if (!attrs.bean) throwTagError("Tag [scaffoldInput] is missing required attribute [bean]")
-        if (!attrs.property) throwTagError("Tag [scaffoldInput] is missing required attribute [property]")
+    Closure field = { attrs ->
+        if (!attrs.bean) throwTagError("Tag [field] is missing required attribute [bean]")
+        if (!attrs.property) throwTagError("Tag [field] is missing required attribute [property]")
 
         def bean = resolveBean(attrs)
         def propertyPath = attrs.property
@@ -50,10 +52,10 @@ class ScaffoldingTagLib implements GrailsApplicationAware {
         // 4: grails-app/views/fields/_default.gsp
         // TODO: implications for templates supplied by plugins
         def templateResolveOrder = []
-        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/", controllerName, propertyAccessor.pathFromRoot)
-        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/fields", "${propertyAccessor.beanType.name}.${propertyAccessor.propertyName}".toString())
-        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/fields", propertyAccessor.type.name)
-        templateResolveOrder << "/fields/default"
+        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/", controllerName, propertyAccessor.propertyName, "field")
+        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/fields", propertyAccessor.beanClass.propertyName, propertyAccessor.propertyName, "field")
+        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/fields", propertyAccessor.type.name, "field")
+        templateResolveOrder << "/fields/default/field"
 
         def template = templateResolveOrder.find {
             groovyPageLocator.findTemplateByPath(it)
