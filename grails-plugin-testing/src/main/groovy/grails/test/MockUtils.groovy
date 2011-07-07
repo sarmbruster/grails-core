@@ -45,7 +45,7 @@ import org.springframework.validation.FieldError
 import org.springframework.web.context.request.RequestContextHolder
 import org.springframework.web.servlet.ModelAndView
 
- /**
+/**
  * A utility/helper class for mocking various types of Grails artifacts
  * and is one of the foundations of the Grails unit testing framework.
  *
@@ -842,6 +842,8 @@ class MockUtils {
                 // now set back-reference
                 if (!(arg instanceof Map)) {
                     def otherHasMany = GrailsClassUtils.getStaticPropertyValue(instanceClass, 'hasMany')
+                    // if there are hasMany definition, try to find back-reference among fields defined there
+                    boolean fieldFound = false
                     if (otherHasMany) {
                         // many-to-many
                         otherHasMany.each { String otherCollectionName, Class otherCollectionType ->
@@ -850,10 +852,12 @@ class MockUtils {
                                     arg."$otherCollectionName" = GrailsClassUtils.createConcreteCollection(otherCollectionType)
                                 }
                                 arg."$otherCollectionName" << obj
+                                fieldFound = true
                             }
                         }
                     }
-                    else {
+                    // if back-reference is not found, try among 1-many fields
+                    if (!fieldFound) {
                         // 1-many
                         for (PropertyDescriptor pd in Introspector.getBeanInfo(instanceClass).propertyDescriptors) {
                             if (clazz.isAssignableFrom(pd.propertyType)) {
@@ -956,13 +960,13 @@ class MockUtils {
 
         // Add data binding capabilities
 
-        clazz.metaClass.constructor =  { Map params ->
+        clazz.metaClass.constructor = { Map params ->
             def obj = BeanUtils.instantiateClass(delegate)
             DataBindingUtils.bindObjectToInstance(obj,params)
             return obj
         }
 
-        clazz.metaClass.setProperties = {Object o ->
+        clazz.metaClass.setProperties = { Object o ->
             DataBindingUtils.bindObjectToInstance(delegate,o)
         }
 

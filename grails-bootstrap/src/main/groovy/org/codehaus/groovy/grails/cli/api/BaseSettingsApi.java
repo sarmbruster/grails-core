@@ -45,19 +45,19 @@ import java.util.Properties;
 public class BaseSettingsApi {
 
     private static final Resource[] NO_RESOURCES = new Resource[0];
-    private BuildSettings buildSettings;
-    private Properties buildProps;
-    private PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
-    private File grailsHome;
-    private Metadata metadata;
-    private File metadataFile;
-    private boolean enableProfile;
-    private boolean isInteractive;
-    private String pluginsHome;
-    private PluginBuildSettings pluginSettings;
-    private String grailsAppName;
-    private Object appClassName;
-    private ConfigSlurper configSlurper;
+    protected BuildSettings buildSettings;
+    protected Properties buildProps;
+    protected PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+    protected File grailsHome;
+    protected Metadata metadata;
+    protected File metadataFile;
+    protected boolean enableProfile;
+    protected boolean isInteractive;
+    protected String pluginsHome;
+    protected PluginBuildSettings pluginSettings;
+    protected String grailsAppName;
+    protected Object appClassName;
+    protected ConfigSlurper configSlurper;
 
     public BaseSettingsApi(final BuildSettings buildSettings, boolean interactive) {
         this.buildSettings = buildSettings;
@@ -125,7 +125,7 @@ public class BaseSettingsApi {
     public String getGrailsAppName() { return grailsAppName; }
     public String getGrailsAppVersion() { return metadata.getApplicationVersion(); }
     public String getAppGrailsVersion() { return metadata.getGrailsVersion(); }
-    public String getServletVersion() { return metadata.getServletVersion() != null ? metadata.getServletVersion() : "2.5"; }
+    public String getServletVersion() { return buildSettings.getServletVersion(); }
 
     public String getPluginsHome() {
         return pluginsHome;
@@ -237,12 +237,7 @@ public class BaseSettingsApi {
         return value != null ? value : defaultValue;
     }
 
-    /**
-     * Modifies the application's metadata, as stored in the "application.properties"
-     * file. If it doesn't exist, the file is created.
-     */
-    public void updateMetadata(@SuppressWarnings("rawtypes") Map entries) {
-        @SuppressWarnings("hiding") Metadata metadata = Metadata.getCurrent();
+    public void updateMetadata(@SuppressWarnings("hiding") Metadata metadata, @SuppressWarnings("rawtypes") Map entries) {
         for (Object key : entries.keySet()) {
             final Object value = entries.get(key);
             if (value != null) {
@@ -251,6 +246,15 @@ public class BaseSettingsApi {
         }
 
         metadata.persist();
+    }
+
+    /**
+     * Modifies the application's metadata, as stored in the "application.properties"
+     * file. If it doesn't exist, the file is created.
+     */
+    public void updateMetadata(@SuppressWarnings("rawtypes") Map entries) {
+        @SuppressWarnings("hiding") Metadata metadata = Metadata.getCurrent();
+        updateMetadata(metadata, entries);
     }
 
     /**

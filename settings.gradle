@@ -11,6 +11,7 @@ include 'grails-bootstrap',
         'grails-scripts',
         
         // Plugins
+        'grails-plugin-beanfields',
         'grails-plugin-domain-class',
         'grails-plugin-url-mappings',
         'grails-plugin-controllers',
@@ -28,6 +29,7 @@ include 'grails-bootstrap',
         'grails-plugin-scaffolding',
         'grails-plugin-testing',
         'grails-plugin-tomcat',
+		'grails-plugin-async',
 
         // Test Suite
         'grails-test-suite-base',

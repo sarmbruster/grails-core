@@ -17,6 +17,7 @@ package org.codehaus.groovy.grails.plugins;
 
 import grails.spring.BeanBuilder;
 import grails.util.BuildScope;
+import grails.util.CollectionUtils;
 import grails.util.Environment;
 import grails.util.GrailsUtil;
 import grails.util.Metadata;
@@ -25,7 +26,6 @@ import groovy.lang.Binding;
 import groovy.lang.Closure;
 import groovy.lang.GroovyClassLoader;
 import groovy.lang.GroovyObject;
-import groovy.util.slurpersupport.GPathResult;
 
 import java.io.File;
 import java.io.IOException;
@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import groovy.xml.dom.DOMCategory;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -62,6 +63,7 @@ import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.type.filter.TypeFilter;
+import org.w3c.dom.Element;
 
 /**
  * Implementation of the GrailsPlugin interface that wraps a Groovy plugin class
@@ -621,12 +623,18 @@ public class DefaultGrailsPlugin extends AbstractGrailsPlugin implements ParentA
     }
 
     @Override
-    public void doWithWebDescriptor(GPathResult webXml) {
+    public void doWithWebDescriptor(final Element webXml) {
         if (pluginBean.isReadableProperty(DO_WITH_WEB_DESCRIPTOR)) {
-            Closure c = (Closure)plugin.getProperty(DO_WITH_WEB_DESCRIPTOR);
+            final Closure c = (Closure)plugin.getProperty(DO_WITH_WEB_DESCRIPTOR);
             c.setResolveStrategy(Closure.DELEGATE_FIRST);
             c.setDelegate(this);
-            c.call(webXml);
+            DefaultGroovyMethods.use(this, DOMCategory.class, new Closure<Object>(this) {
+                @Override
+                public Object call(Object... args) {
+                    return c.call(webXml);
+                }
+            });
+
         }
     }
 
@@ -652,6 +660,7 @@ public class DefaultGrailsPlugin extends AbstractGrailsPlugin implements ParentA
         // do nothing
     }
 
+    @SuppressWarnings("unused")
     public void setWatchedResources(Resource[] watchedResources) throws IOException {
         this.watchedResources = watchedResources;
     }
@@ -725,15 +734,14 @@ public class DefaultGrailsPlugin extends AbstractGrailsPlugin implements ParentA
         }
     }
 
-    @SuppressWarnings("serial")
     public Map notifyOfEvent(int eventKind, final Object source) {
-        Map<String, Object> event = new HashMap<String, Object>() {{
-            put(PLUGIN_CHANGE_EVENT_SOURCE, source);
-            put(PLUGIN_CHANGE_EVENT_PLUGIN, plugin);
-            put(PLUGIN_CHANGE_EVENT_APPLICATION, application);
-            put(PLUGIN_CHANGE_EVENT_MANAGER, getManager());
-            put(PLUGIN_CHANGE_EVENT_CTX, applicationContext);
-        }};
+        @SuppressWarnings("unchecked")
+        Map<String, Object> event = CollectionUtils.<String, Object>newMap(
+            PLUGIN_CHANGE_EVENT_SOURCE, source,
+            PLUGIN_CHANGE_EVENT_PLUGIN, plugin,
+            PLUGIN_CHANGE_EVENT_APPLICATION, application,
+            PLUGIN_CHANGE_EVENT_MANAGER, getManager(),
+            PLUGIN_CHANGE_EVENT_CTX, applicationContext);
 
         switch (eventKind) {
             case EVENT_ON_CHANGE:

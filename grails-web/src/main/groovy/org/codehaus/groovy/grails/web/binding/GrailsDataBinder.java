@@ -77,6 +77,7 @@ import java.util.*;
 public class GrailsDataBinder extends ServletRequestDataBinder {
 
     private static final Log LOG = LogFactory.getLog(GrailsDataBinder.class);
+    private static final String JSON_DATE_FORMAT = "yyyy-MM-dd'T'hh:mm:ss'Z'";
 
     protected BeanWrapper bean;
 
@@ -216,7 +217,7 @@ public class GrailsDataBinder extends ServletRequestDataBinder {
         registry.registerCustomEditor(int.class, new CustomNumberEditor(Integer.class, integerFormat, true));
         registry.registerCustomEditor(Short.class, new CustomNumberEditor(Short.class, integerFormat, true));
         registry.registerCustomEditor(short.class, new CustomNumberEditor(Short.class, integerFormat, true));
-        registry.registerCustomEditor(Date.class, new StructuredDateEditor(dateFormat,true));
+        registry.registerCustomEditor(Date.class, new CompositeEditor(new StructuredDateEditor(dateFormat,true), new CustomDateEditor(new SimpleDateFormat(JSON_DATE_FORMAT), true)));
         registry.registerCustomEditor(Calendar.class, new StructuredDateEditor(dateFormat,true));
 
         ServletContext servletContext = grailsWebRequest != null ? grailsWebRequest.getServletContext() : null;
@@ -318,7 +319,7 @@ public class GrailsDataBinder extends ServletRequestDataBinder {
 
         if (request instanceof MultipartHttpServletRequest) {
             MultipartHttpServletRequest multipartRequest = (MultipartHttpServletRequest) request;
-            bindMultipartFiles(multipartRequest.getFileMap(), mpvs);
+            bindMultipart(multipartRequest.getMultiFileMap(), mpvs);
         }
         doBind(mpvs);
     }
@@ -433,6 +434,9 @@ public class GrailsDataBinder extends ServletRequestDataBinder {
     private void filterNestedParameterMaps(MutablePropertyValues mpvs) {
         for (PropertyValue pv : mpvs.getPropertyValues()) {
             final Object value = pv.getValue();
+            if(JSONObject.NULL.getClass().isInstance(value)) {
+                mpvs.removePropertyValue(pv);
+            }
             if (isNotCandidateForBinding(value)) {
                 mpvs.removePropertyValue(pv);
             }
@@ -902,12 +906,30 @@ public class GrailsDataBinder extends ServletRequestDataBinder {
             }
 
             PropertyEditor editor = findCustomEditor(type, propertyName);
-            if (null == editor || !StructuredPropertyEditor.class.isAssignableFrom(editor.getClass())) {
-                continue;
+
+            if(editor instanceof CompositeEditor) {
+                CompositeEditor composite = (CompositeEditor) editor;
+                List<PropertyEditor> propertyEditors = composite.getPropertyEditors();
+                for (PropertyEditor propertyEditor : propertyEditors) {
+                    if (null == propertyEditor || !StructuredPropertyEditor.class.isAssignableFrom(propertyEditor.getClass())) {
+                        continue;
+                    }
+                    else {
+                        StructuredPropertyEditor structuredEditor = (StructuredPropertyEditor) propertyEditor;
+                        processStructuredProperty(structuredEditor, propertyName, type, valueNames, propertyValues);
+
+                    }
+                }
+            }
+            else {
+                if (null == editor || !StructuredPropertyEditor.class.isAssignableFrom(editor.getClass())) {
+                    continue;
+                }
+
+                StructuredPropertyEditor structuredEditor = (StructuredPropertyEditor) editor;
+                processStructuredProperty(structuredEditor, propertyName, type, valueNames, propertyValues);
             }
 
-            StructuredPropertyEditor structuredEditor = (StructuredPropertyEditor) editor;
-            processStructuredProperty(structuredEditor, propertyName, type, valueNames, propertyValues);
         }
     }
 

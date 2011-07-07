@@ -15,6 +15,7 @@
 package org.codehaus.groovy.grails.orm.hibernate.support;
 
 import org.codehaus.groovy.grails.orm.hibernate.cfg.GrailsHibernateUtil;
+import org.codehaus.groovy.grails.orm.hibernate.metaclass.AbstractSavePersistentMethod;
 import org.codehaus.groovy.grails.web.servlet.GrailsApplicationAttributes;
 import org.codehaus.groovy.grails.web.servlet.mvc.GrailsWebRequest;
 import org.codehaus.groovy.grails.web.sitemesh.GrailsContentBufferingResponse;
@@ -45,9 +46,8 @@ public class GrailsOpenSessionInViewInterceptor extends OpenSessionInViewInterce
 
     @Override
     public void preHandle(WebRequest request) throws DataAccessException {
-        GrailsWebRequest webRequest = (GrailsWebRequest)request.getAttribute(
-                GrailsApplicationAttributes.WEB_REQUEST, WebRequest.SCOPE_REQUEST);
-        final boolean isFlowRequest = webRequest.isFlowRequest();
+        GrailsWebRequest webRequest = GrailsWebRequest.lookup();
+        final boolean isFlowRequest = webRequest != null && webRequest.isFlowRequest();
         if (isFlowRequest) {
             webRequest.setAttribute(IS_FLOW_REQUEST_ATTRIBUTE, "true", WebRequest.SCOPE_REQUEST);
         }
@@ -79,39 +79,43 @@ public class GrailsOpenSessionInViewInterceptor extends OpenSessionInViewInterce
 
     @Override
     public void afterCompletion(WebRequest request, Exception ex) throws DataAccessException {
-        final boolean isWebRequest = request.getAttribute(IS_FLOW_REQUEST_ATTRIBUTE, WebRequest.SCOPE_REQUEST) != null;
-        if (isWebRequest) {
-            return;
-        }
-
-        request = (WebRequest) RequestContextHolder.currentRequestAttributes();
-        if (!(request instanceof GrailsWebRequest)) {
-            super.afterCompletion(request, ex);
-            return;
-        }
-
-        GrailsWebRequest webRequest = (GrailsWebRequest) request;
-        HttpServletResponse response = webRequest.getCurrentResponse();
-        if (!(response instanceof GrailsContentBufferingResponse)) {
-            super.afterCompletion(request, ex);
-            return;
-        }
-
-        GrailsContentBufferingResponse bufferingResponse = (GrailsContentBufferingResponse) response;
-        // if Sitemesh is still active disconnect the session, but don't close the session
-        if (!bufferingResponse.isActive()) {
-            super.afterCompletion(request, ex);
-            return;
-        }
-
         try {
-            Session session = SessionFactoryUtils.getSession(getSessionFactory(), false);
-            if (session != null) {
-                session.disconnect();
+            final boolean isWebRequest = request.getAttribute(IS_FLOW_REQUEST_ATTRIBUTE, WebRequest.SCOPE_REQUEST) != null;
+            if (isWebRequest) {
+                return;
             }
-        }
-        catch (IllegalStateException e) {
-            super.afterCompletion(request, ex);
+
+            request = (WebRequest) RequestContextHolder.currentRequestAttributes();
+            if (!(request instanceof GrailsWebRequest)) {
+                super.afterCompletion(request, ex);
+                return;
+            }
+
+            GrailsWebRequest webRequest = (GrailsWebRequest) request;
+            HttpServletResponse response = webRequest.getCurrentResponse();
+            if (!(response instanceof GrailsContentBufferingResponse)) {
+                super.afterCompletion(request, ex);
+                return;
+            }
+
+            GrailsContentBufferingResponse bufferingResponse = (GrailsContentBufferingResponse) response;
+            // if Sitemesh is still active disconnect the session, but don't close the session
+            if (!bufferingResponse.isActive()) {
+                super.afterCompletion(request, ex);
+                return;
+            }
+
+            try {
+                Session session = SessionFactoryUtils.getSession(getSessionFactory(), false);
+                if (session != null) {
+                    session.disconnect();
+                }
+            }
+            catch (IllegalStateException e) {
+                super.afterCompletion(request, ex);
+            }
+        } finally {
+            AbstractSavePersistentMethod.clearDisabledValidations();
         }
     }
 

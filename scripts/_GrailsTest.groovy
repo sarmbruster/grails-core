@@ -102,6 +102,8 @@ if (grailsSettings.grailsHome) {
 
 // Set up an Ant path for the tests.
 ant.path(id: "grails.test.classpath", testClasspath)
+ant.taskdef (name: 'testc', classname:'org.codehaus.groovy.grails.test.compiler.GrailsTestCompiler', classpathref:"grails.test.classpath")
+
 
 createTestReports = true
 
@@ -172,35 +174,44 @@ target(allTests: "Runs the project's tests.") {
     try {
         // Process the tests in each phase that is configured to run.
         filteredPhases.each { phase, types ->
-            currentTestPhaseName = phase
+            try {
+                currentTestPhaseName = phase
 
-            // Add a blank line before the start of this phase so that it
-            // is easier to distinguish
-            event("TestPhaseStart", [phase])
+                // Add a blank line before the start of this phase so that it
+                // is easier to distinguish
+                event("TestPhaseStart", [phase])
 
-            "${phase}TestPhasePreparation"()
+                "${phase}TestPhasePreparation"()
 
-            // Now run all the tests registered for this phase.
-            types.each(processTests)
-
-            // Perform any clean up required.
-            this."${phase}TestPhaseCleanUp"()
+                // Now run all the tests registered for this phase.
+                types.each(processTests)
+                
+            }
+            finally {
+                // Perform any clean up required.
+                this."${phase}TestPhaseCleanUp"()                
+            }
 
             event("TestPhaseEnd", [phase])
             currentTestPhaseName = null
         }
     }
+    catch(e) {
+        testsFailed = true
+        throw e
+    }
     finally {
-        String msg = testsFailed ? "Tests FAILED" : "Tests PASSED"
+        String label = testsFailed ? "Tests FAILED" : "Tests PASSED"
+        String msg = ""
         if (createTestReports) {
             event("TestProduceReports", [])
             msg += " - view reports in ${testReportsDir}"
         }
         if (testsFailed) {
-            grailsConsole.error(msg)
+            grailsConsole.error(label, msg)
         }
         else {
-            grailsConsole.addStatus(msg)
+            grailsConsole.addStatus("$label$msg")
         }
         event("TestPhasesEnd", [])
     }
@@ -245,14 +256,14 @@ compileTests = { GrailsTestType type, File source, File dest ->
     ant.mkdir(dir: dest.path)
     try {
         def classpathId = "grails.test.classpath"
-        ant.groovyc(destdir: dest, encoding:"UTF-8", classpathref: classpathId,
-                    verbose: grailsSettings.verboseCompile, listfiles: grailsSettings.verboseCompile) {
+        ant.testc(destdir: dest, classpathref: classpathId,
+                  verbose: grailsSettings.verboseCompile, listfiles: grailsSettings.verboseCompile) {
             javac(classpathref: classpathId, debug: "yes")
             src(path: source)
         }
     }
-    catch (Exception e) {
-        event("StatusFinal", ["Compilation error compiling [$type.name] tests: ${e.message}"])
+    catch (e) {
+        grailsConsole.error "Compilation error compiling [$type.name] tests: ${e.cause ? e.cause.message : e.message}", e.cause ? e.cause : e
         exit 1
     }
 
@@ -278,8 +289,8 @@ runTests = { GrailsTestType type, File compiledClassesDir ->
             event("TestSuiteEnd", [type.name])
 
         }
-        catch (Exception e) {
-            grailsConsole.error "Error running $type.name tests: ${e.toString()}", e
+        catch (e) {
+            grailsConsole.error "Error running $type.name tests: ${e.message}", e
             testsFailed = true
         }
         finally {
