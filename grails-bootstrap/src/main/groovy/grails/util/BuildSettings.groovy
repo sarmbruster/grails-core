@@ -27,6 +27,7 @@ import org.codehaus.groovy.grails.cli.support.OwnerlessClosure
 import org.codehaus.groovy.grails.resolve.GrailsCoreDependencies
 import org.codehaus.groovy.grails.resolve.IvyDependencyManager
 import org.codehaus.groovy.runtime.StackTraceUtils
+import static grails.build.logging.GrailsConsole.instance as CONSOLE
 
  /**
  * <p>Represents the project paths and other build settings
@@ -41,6 +42,11 @@ import org.codehaus.groovy.runtime.StackTraceUtils
  */
 class BuildSettings extends AbstractBuildSettings {
     static final Pattern JAR_PATTERN = ~/^\S+\.jar$/
+
+    /**
+     * The version of the servlet API
+     */
+    public static final String SERVLET_VERSION = "grails.servlet.version"
     /**
      * The base directory of the application
      */
@@ -236,6 +242,11 @@ class BuildSettings extends AbstractBuildSettings {
     /** The location of the test source. */
     File testSourceDir
 
+    /**
+     * The version of the servlet API used
+     */
+    String servletVersion = "2.5"
+
     /** The root loader for the build. This has the required libraries on the classpath. */
     URLClassLoader rootLoader
 
@@ -305,7 +316,7 @@ class BuildSettings extends AbstractBuildSettings {
      */
     boolean modified = false
 
-    final GrailsCoreDependencies coreDependencies
+    GrailsCoreDependencies coreDependencies
 
     private List<File> compileDependencies = []
     private boolean defaultCompileDepsAdded = false
@@ -540,8 +551,6 @@ class BuildSettings extends AbstractBuildSettings {
             throw new IOException("Unable to find 'build.properties' - make " +
                     "that sure the 'grails-core-*.jar' file is on the classpath.")
         }
-
-        coreDependencies = new GrailsCoreDependencies(grailsVersion)
 
         // If 'grailsHome' is set, add the JAR file dependencies.
         defaultPluginMap = [hibernate:grailsVersion, tomcat:grailsVersion]
@@ -877,7 +886,7 @@ class BuildSettings extends AbstractBuildSettings {
                     }
                 }
                 catch (e) {
-                    println "WARNING: Error configuring proxy settings: ${e.message}"
+                    CONSOLE.error "WARNING: Error configuring proxy settings: ${e.message}", e
                 }
 
             }
@@ -920,6 +929,7 @@ class BuildSettings extends AbstractBuildSettings {
         def grailsConfig = config.grails
 
         if (!dependenciesExternallyConfigured) {
+            coreDependencies = new GrailsCoreDependencies(grailsVersion, servletVersion)
             grailsConfig.global.dependency.resolution = coreDependencies.createDeclaration()
             def credentials = grailsConfig.project.ivy.authentication
             if (credentials instanceof Closure) {
@@ -1000,7 +1010,7 @@ class BuildSettings extends AbstractBuildSettings {
                     }
                 }
                 catch (e) {
-                    println "WARNING: Dependencies cannot be resolved for plugin [$pluginName] due to error: ${e.message}"
+                    CONSOLE.error "WARNING: Dependencies cannot be resolved for plugin [$pluginName] due to error: ${e.message}", e
                 }
 
             }
@@ -1033,6 +1043,8 @@ class BuildSettings extends AbstractBuildSettings {
         if (!grailsWorkDirSet) {
             grailsWorkDir = new File(getPropertyValue(WORK_DIR, props, "${userHome}/.grails/${grailsVersion}"))
         }
+
+        servletVersion = getPropertyValue(SERVLET_VERSION, props, "2.5")
 
         if (!projectWorkDirSet) {
             def workingDirName = metadata.getApplicationName() ?: CORE_WORKING_DIR_NAME
