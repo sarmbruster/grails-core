@@ -10,7 +10,7 @@ import org.codehaus.groovy.grails.commons.*
 import org.codehaus.groovy.grails.plugins.beanfields.*
 
 @Artefact("TagLibrary")
-class ScaffoldingTagLib implements GrailsApplicationAware {
+class FormFieldsTagLib implements GrailsApplicationAware {
 
 	static namespace = "form"
 

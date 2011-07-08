@@ -16,13 +16,13 @@
 package org.codehaus.groovy.grails.plugins.beanfields
 
 import grails.util.GrailsUtil
-import org.codehaus.groovy.grails.plugins.beanfields.taglib.ScaffoldingTagLib
+import org.codehaus.groovy.grails.plugins.beanfields.taglib.FormFieldsTagLib
 
 class BeanfieldsGrailsPlugin {
 
     def version = GrailsUtil.getGrailsVersion()
     def dependsOn = [core: version, i18n: version, gsp: version]
     def nonEnhancedTagLibClasses = []
-    def providedArtefacts = [ScaffoldingTagLib]
+    def providedArtefacts = [FormFieldsTagLib]
 
 }

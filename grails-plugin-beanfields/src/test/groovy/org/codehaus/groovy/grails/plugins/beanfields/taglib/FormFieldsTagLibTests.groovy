@@ -6,7 +6,7 @@ import org.codehaus.groovy.grails.web.taglib.AbstractGrailsTagTests
 import org.codehaus.groovy.grails.web.taglib.exceptions.GrailsTagException
 import org.springframework.web.servlet.support.RequestContextUtils
 
-class ScaffoldingTagLibTests extends AbstractGrailsTagTests {
+class FormFieldsTagLibTests extends AbstractGrailsTagTests {
 
     def personInstance
     def resourceLoader
