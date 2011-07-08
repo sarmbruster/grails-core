@@ -1,12 +1,12 @@
 package org.codehaus.groovy.grails.plugins.beanfields
 
 import grails.persistence.Entity
-import org.codehaus.groovy.grails.plugins.beanfields.taglib.ScaffoldingTagLib
+import org.codehaus.groovy.grails.plugins.beanfields.taglib.FormFieldsTagLib
 import org.springframework.beans.NotReadablePropertyException
 import grails.test.mixin.*
 import spock.lang.*
 
-@TestFor(ScaffoldingTagLib)
+@TestFor(FormFieldsTagLib)
 @Mock([Person, Address, Author, Book])
 class BeanPropertyAccessorSpec extends Specification {
 
