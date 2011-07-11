@@ -238,4 +238,16 @@ class FormFieldsTagLibTests extends AbstractGrailsTagTests {
 
 		assert applyTemplate('<form:field bean="personInstance" property="dateOfBirth"/>', [personInstance: personInstance]) == "required=true"
 	}
+
+	void testRequiredCanBeForcedWithAttribute() {
+		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", 'required=${required}')
+
+		assert applyTemplate('<form:field bean="personInstance" property="minor" required="true"/>', [personInstance: personInstance]) == "required=true"
+	}
+
+	void testRequiredCanBeForcedOffWithAttribute() {
+		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", 'required=${required}')
+
+		assert applyTemplate('<form:field bean="personInstance" property="name" required="false"/>', [personInstance: personInstance]) == "required=false"
+	}
 }

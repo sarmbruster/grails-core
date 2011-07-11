@@ -39,7 +39,7 @@ class FormFieldsTagLib implements GrailsApplicationAware {
         model.value = attrs.value ?: propertyAccessor.value ?: attrs.default
         model.constraints = propertyAccessor.constraints
         model.errors = propertyAccessor.errors.collect { message(error: it) }
-		model.required = isRequired(propertyAccessor)
+		model.required = isRequired(attrs, propertyAccessor)
 
         out << render(template: template, model: model)
     }
@@ -90,8 +90,10 @@ class FormFieldsTagLib implements GrailsApplicationAware {
         label ?: message(code: propertyAccessor.labelKey, default: propertyAccessor.defaultLabel)
     }
 
-	private boolean isRequired(BeanPropertyAccessor propertyAccessor) {
-		if (propertyAccessor.type in [Boolean, boolean]) {
+	private boolean isRequired(Map attrs, BeanPropertyAccessor propertyAccessor) {
+		if (attrs.containsKey("required")) {
+			Boolean.valueOf(attrs.required)
+		} else if (propertyAccessor.type in [Boolean, boolean]) {
 			false
 		} else if (propertyAccessor.type == String) {
 			!propertyAccessor.constraints.nullable && !propertyAccessor.constraints.blank
