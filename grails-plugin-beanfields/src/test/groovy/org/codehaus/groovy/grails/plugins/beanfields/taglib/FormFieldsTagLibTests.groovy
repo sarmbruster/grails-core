@@ -20,7 +20,12 @@ class FormFieldsTagLibTests extends AbstractGrailsTagTests {
 				String gender
 				Date dateOfBirth
                 Address address
+				boolean minor
                 static embedded = ['address']
+				static constraints = {
+					name blank: false
+					address nullable: true
+				}
 			}
             class Address {
                 String street
@@ -45,7 +50,7 @@ class FormFieldsTagLibTests extends AbstractGrailsTagTests {
         webRequest.controllerName = "person"
 
         def person = ga.getDomainClass("Person")
-        personInstance = person.clazz.newInstance(name: "Bart Simpson", password: "bartman", gender: "Male", dateOfBirth: new Date(87, 3, 19))
+        personInstance = person.clazz.newInstance(name: "Bart Simpson", password: "bartman", gender: "Male", dateOfBirth: new Date(87, 3, 19), minor: true)
 
         def address = ga.classLoader.loadClass("Address")
         personInstance.address = address.newInstance(street: "94 Evergreen Terrace", city: "Springfield", country: "USA")
@@ -127,7 +132,7 @@ class FormFieldsTagLibTests extends AbstractGrailsTagTests {
     void testConstraintsArePassedToTemplate() {
         resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", 'nullable=${constraints.nullable}, blank=${constraints.blank}')
 
-        assert applyTemplate('<form:field bean="personInstance" property="name"/>', [personInstance: personInstance]) == "nullable=false, blank=true"
+        assert applyTemplate('<form:field bean="personInstance" property="name"/>', [personInstance: personInstance]) == "nullable=false, blank=false"
     }
 
     void testLabelIsResolvedByConventionAndPassedToTemplate() {
@@ -203,4 +208,34 @@ class FormFieldsTagLibTests extends AbstractGrailsTagTests {
 
         assert applyTemplate('<form:field bean="personInstance" property="address.city"/>', [personInstance: personInstance]) == "CLASS AND PROPERTY TEMPLATE"
     }
+
+	void testBlankableStringFieldsAreNotConsideredRequired() {
+		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", 'required=${required}')
+
+		assert applyTemplate('<form:field bean="personInstance" property="password"/>', [personInstance: personInstance]) == "required=false"
+	}
+
+	void testNonBlankableStringFieldsAreConsideredRequired() {
+		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", 'required=${required}')
+
+		assert applyTemplate('<form:field bean="personInstance" property="name"/>', [personInstance: personInstance]) == "required=true"
+	}
+
+	void testBooleanFieldsAreNotConsideredRequired() {
+		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", 'required=${required}')
+
+		assert applyTemplate('<form:field bean="personInstance" property="minor"/>', [personInstance: personInstance]) == "required=false"
+	}
+
+	void testNullableFieldsAreNotConsideredRequired() {
+		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", 'required=${required}')
+
+		assert applyTemplate('<form:field bean="personInstance" property="address"/>', [personInstance: personInstance]) == "required=false"
+	}
+
+	void testNonNullableFieldsAreConsideredRequired() {
+		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", 'required=${required}')
+
+		assert applyTemplate('<form:field bean="personInstance" property="dateOfBirth"/>', [personInstance: personInstance]) == "required=true"
+	}
 }

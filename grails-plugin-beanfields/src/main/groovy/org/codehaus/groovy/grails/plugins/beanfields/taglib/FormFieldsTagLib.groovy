@@ -39,11 +39,12 @@ class FormFieldsTagLib implements GrailsApplicationAware {
         model.value = attrs.value ?: propertyAccessor.value ?: attrs.default
         model.constraints = propertyAccessor.constraints
         model.errors = propertyAccessor.errors.collect { message(error: it) }
+		model.required = isRequired(propertyAccessor)
 
         out << render(template: template, model: model)
     }
 
-    // TODO: cache the result of this lookup
+	// TODO: cache the result of this lookup
     private def resolveTemplate(BeanPropertyAccessor propertyAccessor) {
         // order of priority for template resolution
         // 1: grails-app/views/controller/<property>/_field.gsp
@@ -88,5 +89,16 @@ class FormFieldsTagLib implements GrailsApplicationAware {
         }
         label ?: message(code: propertyAccessor.labelKey, default: propertyAccessor.defaultLabel)
     }
+
+	private boolean isRequired(BeanPropertyAccessor propertyAccessor) {
+		if (propertyAccessor.type in [Boolean, boolean]) {
+			false
+		} else if (propertyAccessor.type == String) {
+			!propertyAccessor.constraints.nullable && !propertyAccessor.constraints.blank
+		} else {
+			!propertyAccessor.constraints.nullable
+		}
+	}
+
 }
 
