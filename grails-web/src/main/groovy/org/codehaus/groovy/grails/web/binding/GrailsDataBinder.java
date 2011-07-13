@@ -472,6 +472,7 @@ public class GrailsDataBinder extends ServletRequestDataBinder {
         PropertyValue[] pvs = mpvs.getPropertyValues();
         for (PropertyValue pv : pvs) {
             String propertyName = pv.getName();
+            if(!isAllowed(propertyName)) continue;
             if (propertyName.indexOf(PATH_SEPARATOR) > -1) {
                 String[] propertyNames = propertyName.split("\\.");
                 BeanWrapper currentBean = bean;
@@ -490,6 +491,15 @@ public class GrailsDataBinder extends ServletRequestDataBinder {
                 autoCreatePropertyIfPossible(bean, propertyName, pv.getValue());
             }
         }
+    }
+
+    @Override
+    protected boolean isAllowed(String field) {
+        int i = field.indexOf('[');
+        if(i>-1) {
+            field = field.substring(0,i);
+        }
+        return super.isAllowed(field);
     }
 
     @SuppressWarnings("unchecked")
@@ -781,11 +791,13 @@ public class GrailsDataBinder extends ServletRequestDataBinder {
     @SuppressWarnings("unchecked")
     private void bindCollectionAssociation(MutablePropertyValues mpvs, PropertyValue pv) {
         Object v = pv.getValue();
+        final boolean isArray = v != null && v.getClass().isArray();
+
+        if(!isArray && !(v instanceof String)) return;
 
         Collection collection = (Collection) bean.getPropertyValue(pv.getName());
         collection.clear();
         final Class associatedType = getReferencedTypeForCollection(pv.getName(), getTarget());
-        final boolean isArray = v != null && v.getClass().isArray();
         final PropertyEditor propertyEditor = findCustomEditor(collection.getClass(), pv.getName());
         if (propertyEditor == null) {
             if (isDomainAssociation(associatedType)) {
@@ -858,7 +870,7 @@ public class GrailsDataBinder extends ServletRequestDataBinder {
             GrailsDomainClass dc = (GrailsDomainClass) grailsApplication.getArtefact(
                     DomainClassArtefactHandler.TYPE, target.getClass().getName());
             if (dc != null) {
-                GrailsDomainClassProperty domainProperty = dc.getPropertyByName(name);
+                GrailsDomainClassProperty domainProperty = dc.getPersistentProperty(name);
                 if (domainProperty != null) {
                     return domainProperty.getReferencedPropertyType();
                 }
@@ -998,8 +1010,10 @@ public class GrailsDataBinder extends ServletRequestDataBinder {
     private void mapPropertyValues(PropertyValue[] pvs,
             Map<String, PropertyValue> valuesByName, List<String> valueNames) {
         for (PropertyValue pv : pvs) {
-            valuesByName.put(pv.getName(), pv);
-            valueNames.add(pv.getName());
+            String propertyName = pv.getName();
+            if(!isAllowed(propertyName)) continue;
+            valuesByName.put(propertyName, pv);
+            valueNames.add(propertyName);
         }
     }
 
