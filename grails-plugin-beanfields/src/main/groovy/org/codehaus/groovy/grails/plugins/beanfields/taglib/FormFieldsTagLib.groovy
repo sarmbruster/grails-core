@@ -40,6 +40,7 @@ class FormFieldsTagLib implements GrailsApplicationAware {
         model.constraints = propertyAccessor.constraints
         model.errors = propertyAccessor.errors.collect { message(error: it) }
 		model.required = isRequired(attrs, propertyAccessor)
+		model.invalid = isInvalid(attrs, propertyAccessor)
 
         out << render(template: template, model: model)
     }
@@ -99,6 +100,14 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 			!propertyAccessor.constraints.nullable && !propertyAccessor.constraints.blank
 		} else {
 			!propertyAccessor.constraints.nullable
+		}
+	}
+
+	private boolean isInvalid(Map attrs, BeanPropertyAccessor propertyAccessor) {
+		if (attrs.containsKey("invalid")) {
+			Boolean.valueOf(attrs.invalid)
+		} else {
+			!propertyAccessor.errors.empty
 		}
 	}
 

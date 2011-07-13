@@ -250,4 +250,24 @@ class FormFieldsTagLibTests extends AbstractGrailsTagTests {
 
 		assert applyTemplate('<form:field bean="personInstance" property="name" required="false"/>', [personInstance: personInstance]) == "required=false"
 	}
+
+	void testInvalidFlagIsPassedToTemplateIfBeanHasErrors() {
+		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", 'invalid=${invalid}')
+		personInstance.errors.rejectValue("name", "blank")
+
+		assert applyTemplate('<form:field bean="personInstance" property="name"/>', [personInstance: personInstance]) == "invalid=true"
+	}
+
+	void testInvalidFlagIsNotPassedToTemplateIfBeanHasNoErrors() {
+		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", 'invalid=${invalid}')
+
+		assert applyTemplate('<form:field bean="personInstance" property="name"/>', [personInstance: personInstance]) == "invalid=false"
+	}
+
+	void testInvalidFlagCanBeOverriddenWithAttribute() {
+		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", 'invalid=${invalid}')
+
+		assert applyTemplate('<form:field bean="personInstance" property="name" invalid="true"/>', [personInstance: personInstance]) == "invalid=true"
+	}
+
 }
