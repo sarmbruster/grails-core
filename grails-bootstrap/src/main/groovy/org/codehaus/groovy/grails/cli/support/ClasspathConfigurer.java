@@ -19,6 +19,7 @@ import grails.build.logging.GrailsConsole;
 import grails.util.BuildSettings;
 
 import java.io.File;
+import java.io.FilenameFilter;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -31,6 +32,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.codehaus.groovy.grails.resolve.IvyDependencyManager;
+import org.codehaus.groovy.grails.resolve.ResolveException;
 
 /**
  * Support class that configures the Grails classpath when executing command line scripts
@@ -89,40 +91,64 @@ public class ClasspathConfigurer {
                @SuppressWarnings("hiding") boolean skipPlugins) throws MalformedURLException {
         List<URL> urls = new ArrayList<URL>();
 
-        // If 'grailsHome' is set, make sure the script cache directory takes precedence
-        // over the "grails-scripts" JAR by adding it first.
-        if (settings.getGrailsHome() != null) {
-            urls.add(cacheDir.toURI().toURL());
-        }
+        try {
+// If 'grailsHome' is set, make sure the script cache directory takes precedence
+            // over the "grails-scripts" JAR by adding it first.
+            if (settings.getGrailsHome() != null) {
+                urls.add(cacheDir.toURI().toURL());
+            }
 
-        // Add the "resources" directory so that config files and the
-        // like can be picked up off the classpath.
-        if (settings.getResourcesDir() != null && settings.getResourcesDir().exists()) {
-            urls.add(settings.getResourcesDir().toURI().toURL());
-        }
+            // Add the "resources" directory so that config files and the
+            // like can be picked up off the classpath.
+            if (settings.getResourcesDir() != null && settings.getResourcesDir().exists()) {
+                urls.add(settings.getResourcesDir().toURI().toURL());
+            }
 
-        // Add build-only dependencies to the project
-        final boolean dependenciesExternallyConfigured = settings.isDependenciesExternallyConfigured();
-        // add dependencies required by the build system
-        final List<File> buildDependencies = settings.getBuildDependencies();
-        if (!dependenciesExternallyConfigured && buildDependencies.isEmpty()) {
-            GrailsConsole.getInstance().error("Required Grails build dependencies were not found. Either GRAILS_HOME is not set or your dependencies are misconfigured in grails-app/conf/BuildConfig.groovy");
+            // Add build-only dependencies to the project
+            final boolean dependenciesExternallyConfigured = settings.isDependenciesExternallyConfigured();
+            // add dependencies required by the build system
+            final List<File> buildDependencies = settings.getBuildDependencies();
+            if (!dependenciesExternallyConfigured && buildDependencies.isEmpty()) {
+                GrailsConsole.getInstance().error("Required Grails build dependencies were not found. Either GRAILS_HOME is not set or your dependencies are misconfigured in grails-app/conf/BuildConfig.groovy");
+                cleanResolveCache(settings);
+
+                System.exit(1);
+            }
+            addDependenciesToURLs(excludes, urls, buildDependencies);
+            // add dependencies required at development time, but not at deployment time
+            addDependenciesToURLs(excludes, urls, settings.getProvidedDependencies());
+            // Add the project's test dependencies (which include runtime dependencies) because most of them
+            // will be required for the build to work.
+            addDependenciesToURLs(excludes, urls, settings.getTestDependencies());
+
+            // Add the libraries of both project and global plugins.
+            if (!skipPlugins) {
+                for (File dir : pluginPathSupport.listKnownPluginDirs()) {
+                    addPluginLibs(dir, urls, settings);
+                }
+            }
+        } catch (ResolveException e) {
+            GrailsConsole.getInstance().error(e.getMessage());
             System.exit(1);
         }
-        addDependenciesToURLs(excludes, urls, buildDependencies);
-        // add dependencies required at development time, but not at deployment time
-        addDependenciesToURLs(excludes, urls, settings.getProvidedDependencies());
-        // Add the project's test dependencies (which include runtime dependencies) because most of them
-        // will be required for the build to work.
-        addDependenciesToURLs(excludes, urls, settings.getTestDependencies());
+        return urls.toArray(new URL[urls.size()]);
+    }
 
-        // Add the libraries of both project and global plugins.
-        if (!skipPlugins) {
-            for (File dir : pluginPathSupport.listKnownPluginDirs()) {
-                addPluginLibs(dir, urls, settings);
+    public static void cleanResolveCache(BuildSettings settings) {
+        File projectWorkDir = settings.getProjectWorkDir();
+        if(projectWorkDir != null) {
+            File[] files = projectWorkDir.listFiles(new FilenameFilter() {
+
+                public boolean accept(File file, String s) {
+                    return s.endsWith(".resolve");
+                }
+            });
+            if(files != null) {
+                for (File file : files) {
+                    file.delete();
+                }
             }
         }
-        return urls.toArray(new URL[urls.size()]);
     }
 
     protected void addDependenciesToURLs(Set<String> excludes, List<URL> urls, List<File> runtimeDeps) throws MalformedURLException {
