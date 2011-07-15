@@ -14,101 +14,105 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 
 	static namespace = "form"
 
-    GrailsApplication grailsApplication
-    GrailsConventionGroovyPageLocator groovyPageLocator
+	GrailsApplication grailsApplication
+	GrailsConventionGroovyPageLocator groovyPageLocator
 	BeanPropertyAccessorFactory beanPropertyAccessorFactory
 
-	@PostConstruct void initialize() {
+	@PostConstruct
+	void initialize() {
 		beanPropertyAccessorFactory = new BeanPropertyAccessorFactory(grailsApplication: grailsApplication)
 	}
 
-    Closure field = { attrs ->
-        if (!attrs.bean) throwTagError("Tag [field] is missing required attribute [bean]")
-        if (!attrs.property) throwTagError("Tag [field] is missing required attribute [property]")
+	Closure field = { attrs ->
+		def propertyAccessor = resolveProperty(attrs)
+		def template = resolveFieldTemplate(propertyAccessor)
+		def model = buildModel(propertyAccessor, attrs)
+		model.input = renderInput(model)
 
-        def bean = resolveBean(attrs)
-        def propertyPath = attrs.property
-        def propertyAccessor = beanPropertyAccessorFactory.accessorFor(bean, propertyPath)
-
-        def template = resolveTemplate(propertyAccessor)
-
-        def model = [:]
-        model.bean = propertyAccessor.rootBean
-        model.property = propertyAccessor.pathFromRoot
-        model.label = resolveLabelText(propertyAccessor, attrs)
-        model.value = attrs.value ?: propertyAccessor.value ?: attrs.default
-        model.constraints = propertyAccessor.constraints
-        model.errors = propertyAccessor.errors.collect { message(error: it) }
-		model.required = isRequired(attrs, propertyAccessor)
-		model.invalid = isInvalid(attrs, propertyAccessor)
-
-        out << render(template: template, model: model)
-    }
-
-	// TODO: cache the result of this lookup
-    private def resolveTemplate(BeanPropertyAccessor propertyAccessor) {
-        // order of priority for template resolution
-        // 1: grails-app/views/controller/<property>/_field.gsp
-        // 2: grails-app/views/forms/<class>.<property>/_field.gsp
-        // 3: grails-app/views/forms/<type>/_field.gsp
-        // 4: grails-app/views/forms/default/_field.gsp
-        // TODO: implications for templates supplied by plugins
-        def templateResolveOrder = []
-        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/", controllerName, propertyAccessor.propertyName, "field")
-        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/forms", propertyAccessor.beanClass.propertyName, propertyAccessor.propertyName, "field")
-        templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/forms", propertyAccessor.type.name, "field")
-        templateResolveOrder << "/forms/default/field"
-
-        def template = templateResolveOrder.find {
-            groovyPageLocator.findTemplateByPath(it)
-        }
-        return template
-    }
-
-    private resolveBean(Map attrs) {
-        pageScope.variables[attrs.bean] ?: attrs.bean
-    }
-
-    private GrailsDomainClass resolveDomainClass(bean) {
-        resolveDomainClass(bean.getClass())
-    }
-
-    private GrailsDomainClass resolveDomainClass(Class beanClass) {
-        grailsApplication.getArtefact("Domain", beanClass.simpleName)
-    }
-
-    private Map<String, Object> resolveProperty(bean, String property) {
-        def domainClass = resolveDomainClass(bean.getClass())
-        def path = property.tokenize(".")
-        resolvePropertyFromPathComponents(PropertyAccessorFactory.forBeanPropertyAccess(bean), domainClass, path)
-    }
-
-    private String resolveLabelText(BeanPropertyAccessor propertyAccessor, Map attrs) {
-        def label = attrs.label
-        if (!label && attrs.labelKey) {
-            label = message(code: attrs.labelKey)
-        }
-        label ?: message(code: propertyAccessor.labelKey, default: propertyAccessor.defaultLabel)
-    }
-
-	private boolean isRequired(Map attrs, BeanPropertyAccessor propertyAccessor) {
-		if (attrs.containsKey("required")) {
-			Boolean.valueOf(attrs.required)
-		} else if (propertyAccessor.type in [Boolean, boolean]) {
-			false
-		} else if (propertyAccessor.type == String) {
-			!propertyAccessor.constraints.nullable && !propertyAccessor.constraints.blank
-		} else {
-			!propertyAccessor.constraints.nullable
-		}
+		out << render(template: template, model: model)
 	}
 
-	private boolean isInvalid(Map attrs, BeanPropertyAccessor propertyAccessor) {
-		if (attrs.containsKey("invalid")) {
-			Boolean.valueOf(attrs.invalid)
-		} else {
-			!propertyAccessor.errors.empty
+	Closure input = { attrs ->
+		def propertyAccessor = resolveProperty(attrs)
+		def model = buildModel(propertyAccessor, attrs)
+		out << renderInput(model)
+	}
+
+	private Map buildModel(BeanPropertyAccessor propertyAccessor, attrs) {
+		[
+				bean: propertyAccessor.rootBean,
+				property: propertyAccessor.pathFromRoot,
+				label: resolveLabelText(propertyAccessor, attrs),
+				value: attrs.value ?: propertyAccessor.value ?: attrs.default,
+				constraints: propertyAccessor.constraints,
+				errors: propertyAccessor.errors.collect { message(error: it) },
+				required: attrs.containsKey("required") ? Boolean.valueOf(attrs.required) : propertyAccessor.required,
+				invalid: attrs.containsKey("invalid") ? Boolean.valueOf(attrs.invalid) : propertyAccessor.invalid,
+		]
+	}
+
+	private BeanPropertyAccessor resolveProperty(attrs) {
+		if (!attrs.bean) throwTagError("Tag [field] is missing required attribute [bean]")
+		if (!attrs.property) throwTagError("Tag [field] is missing required attribute [property]")
+
+		def bean = resolveBean(attrs)
+		def propertyPath = attrs.property
+		def propertyAccessor = beanPropertyAccessorFactory.accessorFor(bean, propertyPath)
+		return propertyAccessor
+	}
+
+	private String renderInput(Map attrs) {
+		def model = [:]
+		model.name = attrs.property
+		model.value = attrs.value
+		if (attrs.required) model.required = ""
+		g.textField(model)
+	}
+
+	// TODO: cache the result of this lookup
+	private String resolveFieldTemplate(BeanPropertyAccessor propertyAccessor) {
+		// order of priority for template resolution
+		// 1: grails-app/views/controller/<property>/_field.gsp
+		// 2: grails-app/views/forms/<class>.<property>/_field.gsp
+		// 3: grails-app/views/forms/<type>/_field.gsp
+		// 4: grails-app/views/forms/default/_field.gsp
+		// TODO: implications for templates supplied by plugins
+		def templateResolveOrder = []
+		templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/", controllerName, propertyAccessor.propertyName, "field")
+		templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/forms", propertyAccessor.beanClass.propertyName, propertyAccessor.propertyName, "field")
+		templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/forms", propertyAccessor.type.name, "field")
+		templateResolveOrder << "/forms/default/field"
+
+		def template = templateResolveOrder.find {
+			groovyPageLocator.findTemplateByPath(it)
 		}
+		return template
+	}
+
+	private resolveBean(Map attrs) {
+		pageScope.variables[attrs.bean] ?: attrs.bean
+	}
+
+	private GrailsDomainClass resolveDomainClass(bean) {
+		resolveDomainClass(bean.getClass())
+	}
+
+	private GrailsDomainClass resolveDomainClass(Class beanClass) {
+		grailsApplication.getArtefact("Domain", beanClass.simpleName)
+	}
+
+	private Map<String, Object> resolveProperty(bean, String property) {
+		def domainClass = resolveDomainClass(bean.getClass())
+		def path = property.tokenize(".")
+		resolvePropertyFromPathComponents(PropertyAccessorFactory.forBeanPropertyAccess(bean), domainClass, path)
+	}
+
+	private String resolveLabelText(BeanPropertyAccessor propertyAccessor, Map attrs) {
+		def label = attrs.label
+		if (!label && attrs.labelKey) {
+			label = message(code: attrs.labelKey)
+		}
+		label ?: message(code: propertyAccessor.labelKey, default: propertyAccessor.defaultLabel)
 	}
 
 }

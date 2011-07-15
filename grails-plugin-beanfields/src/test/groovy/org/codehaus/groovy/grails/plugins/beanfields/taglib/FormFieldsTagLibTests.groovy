@@ -270,4 +270,8 @@ class FormFieldsTagLibTests extends AbstractGrailsTagTests {
 		assert applyTemplate('<form:field bean="personInstance" property="name" invalid="true"/>', [personInstance: personInstance]) == "invalid=true"
 	}
 
+	void testInputForStringIsTextField() {
+		assert applyTemplate('<form:input bean="personInstance" property="name"/>', [personInstance: personInstance]) == '<input type="text" name="name" value="Bart Simpson" required="" id="name" />'
+	}
+
 }
