@@ -259,7 +259,7 @@ class BeanPropertyAccessorSpec extends Specification {
 		propertyAccessor.invalid
 	}
 
-	@Unroll
+	@Unroll({ "the $path property is ${expected ? '' : 'not '}required" })
 	def "correctly identifies required properties"() {
 		given:
 		def propertyAccessor = factory.accessorFor(bean, path)
@@ -270,9 +270,10 @@ class BeanPropertyAccessorSpec extends Specification {
 		where:
 		bean   | path          | expected
 		person | "name"        | true // non-blank string
-		person | "dateOfBirth" | true // nullable object
+		person | "dateOfBirth" | false // nullable object
 		person | "password"    | false // blank string
-		person | "gender"      | false // non-nullable string
+		person | "gender"      | true // non-nullable string
+		person | "minor"       | false // boolean properties are never considered required
 	}
 
 }
@@ -285,6 +286,7 @@ class Person {
 	Gender gender
 	Date dateOfBirth
 	Map emails = [:]
+	boolean minor
 	static hasMany = [emails: String]
 	Address address
 	static embedded = ['address']

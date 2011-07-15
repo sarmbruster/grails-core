@@ -64,7 +64,13 @@ class BeanPropertyAccessor {
 	}
 
 	boolean isRequired() {
-		(type == String && !constraints.blank) || constraints.nullable
+		if (type in [Boolean, boolean]) {
+			false
+		} else if (type == String) {
+			!constraints.nullable && !constraints.blank
+		} else {
+			!constraints.nullable
+		}
 	}
 
 	boolean isInvalid() {
