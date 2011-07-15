@@ -42,6 +42,7 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 		[
 				bean: propertyAccessor.rootBean,
 				property: propertyAccessor.pathFromRoot,
+				type: propertyAccessor.type,
 				label: resolveLabelText(propertyAccessor, attrs),
 				value: attrs.value ?: propertyAccessor.value ?: attrs.default,
 				constraints: propertyAccessor.constraints,
@@ -66,7 +67,13 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 		model.name = attrs.property
 		model.value = attrs.value
 		if (attrs.required) model.required = ""
-		g.textField(model)
+		switch (attrs.type) {
+			case String:
+				return g.textField(model)
+			case boolean:
+			case Boolean:
+				return g.checkBox(model)
+		}
 	}
 
 	// TODO: cache the result of this lookup

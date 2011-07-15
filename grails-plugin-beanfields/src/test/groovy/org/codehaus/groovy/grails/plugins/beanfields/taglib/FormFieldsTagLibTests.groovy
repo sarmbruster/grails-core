@@ -209,43 +209,19 @@ class FormFieldsTagLibTests extends AbstractGrailsTagTests {
         assert applyTemplate('<form:field bean="personInstance" property="address.city"/>', [personInstance: personInstance]) == "CLASS AND PROPERTY TEMPLATE"
     }
 
-	void testBlankableStringFieldsAreNotConsideredRequired() {
-		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", 'required=${required}')
-
-		assert applyTemplate('<form:field bean="personInstance" property="password"/>', [personInstance: personInstance]) == "required=false"
-	}
-
-	void testNonBlankableStringFieldsAreConsideredRequired() {
+	void testRequiredFlagIsPassedToTemplate() {
 		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", 'required=${required}')
 
 		assert applyTemplate('<form:field bean="personInstance" property="name"/>', [personInstance: personInstance]) == "required=true"
 	}
 
-	void testBooleanFieldsAreNotConsideredRequired() {
-		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", 'required=${required}')
-
-		assert applyTemplate('<form:field bean="personInstance" property="minor"/>', [personInstance: personInstance]) == "required=false"
-	}
-
-	void testNullableFieldsAreNotConsideredRequired() {
-		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", 'required=${required}')
-
-		assert applyTemplate('<form:field bean="personInstance" property="address"/>', [personInstance: personInstance]) == "required=false"
-	}
-
-	void testNonNullableFieldsAreConsideredRequired() {
-		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", 'required=${required}')
-
-		assert applyTemplate('<form:field bean="personInstance" property="dateOfBirth"/>', [personInstance: personInstance]) == "required=true"
-	}
-
-	void testRequiredCanBeForcedWithAttribute() {
+	void testRequiredFlagCanBeForcedWithAttribute() {
 		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", 'required=${required}')
 
 		assert applyTemplate('<form:field bean="personInstance" property="minor" required="true"/>', [personInstance: personInstance]) == "required=true"
 	}
 
-	void testRequiredCanBeForcedOffWithAttribute() {
+	void testRequiredFlagCanBeForcedOffWithAttribute() {
 		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", 'required=${required}')
 
 		assert applyTemplate('<form:field bean="personInstance" property="name" required="false"/>', [personInstance: personInstance]) == "required=false"
@@ -271,7 +247,15 @@ class FormFieldsTagLibTests extends AbstractGrailsTagTests {
 	}
 
 	void testInputForStringIsTextField() {
-		assert applyTemplate('<form:input bean="personInstance" property="name"/>', [personInstance: personInstance]) == '<input type="text" name="name" value="Bart Simpson" required="" id="name" />'
+		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", '${input}')
+
+		assert applyTemplate('<form:field bean="personInstance" property="name"/>', [personInstance: personInstance]) == '<input type="text" name="name" value="Bart Simpson" required="" id="name" />'
+	}
+
+	void testInputForBooleanIsCheckbox() {
+		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", '${input}')
+
+		assert applyTemplate('<form:field bean="personInstance" property="minor"/>', [personInstance: personInstance]) == '<input type="hidden" name="_minor" /><input type="checkbox" name="minor" checked="checked" id="minor"  />'
 	}
 
 }
