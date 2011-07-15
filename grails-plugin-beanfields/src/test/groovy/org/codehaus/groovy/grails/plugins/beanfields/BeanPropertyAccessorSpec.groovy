@@ -224,6 +224,7 @@ class BeanPropertyAccessorSpec extends Specification {
 
 		and:
 		propertyAccessor.errors.first().code == "blank"
+		propertyAccessor.invalid
 	}
 
 	@Issue("http://jira.grails.org/browse/GRAILS-7713")
@@ -239,6 +240,7 @@ class BeanPropertyAccessorSpec extends Specification {
 
 		and:
 		propertyAccessor.errors.first().code == "inList"
+		propertyAccessor.invalid
 	}
 
 	@Issue("http://jira.grails.org/browse/GRAILS-7713")
@@ -254,6 +256,23 @@ class BeanPropertyAccessorSpec extends Specification {
 
 		and:
 		propertyAccessor.errors.first().code == "blank"
+		propertyAccessor.invalid
+	}
+
+	@Unroll
+	def "correctly identifies required properties"() {
+		given:
+		def propertyAccessor = factory.accessorFor(bean, path)
+
+		expect:
+		propertyAccessor.required == expected
+
+		where:
+		bean   | path          | expected
+		person | "name"        | true // non-blank string
+		person | "dateOfBirth" | true // nullable object
+		person | "password"    | false // blank string
+		person | "gender"      | false // non-nullable string
 	}
 
 }
@@ -263,7 +282,7 @@ class BeanPropertyAccessorSpec extends Specification {
 class Person {
 	String name
 	String password
-	String gender
+	Gender gender
 	Date dateOfBirth
 	Map emails = [:]
 	static hasMany = [emails: String]
@@ -271,6 +290,7 @@ class Person {
 	static embedded = ['address']
 	static constraints = {
 		name blank: false
+		dateOfBirth nullable: true
 	}
 }
 
@@ -304,4 +324,8 @@ class Book {
 	static constraints = {
 		title blank: false
 	}
+}
+
+enum Gender {
+	Male, Female
 }

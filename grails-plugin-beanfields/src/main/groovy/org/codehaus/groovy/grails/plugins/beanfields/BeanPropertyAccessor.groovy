@@ -63,6 +63,14 @@ class BeanPropertyAccessor {
 		rootBean.errors.getFieldErrors(pathFromRoot)
 	}
 
+	boolean isRequired() {
+		(type == String && !constraints.blank) || constraints.nullable
+	}
+
+	boolean isInvalid() {
+		!errors.empty
+	}
+
 }
 
 class BeanPropertyAccessorFactory implements GrailsApplicationAware {
