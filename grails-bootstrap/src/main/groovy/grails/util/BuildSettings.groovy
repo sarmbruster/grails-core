@@ -371,7 +371,6 @@ class BuildSettings extends AbstractBuildSettings {
         }
         scopePluginDependencies.addAll(pluginZips)
         resolveCache[scope] = jarFiles
-        storeCache()
         jarFiles = jarFiles.findAll { it.name.endsWith(".jar") }
         return jarFiles
     }
@@ -628,6 +627,7 @@ class BuildSettings extends AbstractBuildSettings {
     private boolean convertClosuresArtefactsSet
     private String resolveChecksum
     private Map resolveCache = new ConcurrentHashMap()
+    private boolean readFromCache = false
 
     BuildSettings() {
         this(null)
@@ -670,15 +670,17 @@ class BuildSettings extends AbstractBuildSettings {
         // otherwise it loads the script class using the Gant classloader.
     }
 
-    private storeCache() {
+    public void storeDependencyCache() {
         projectWorkDir.mkdirs()
         if (resolveChecksum) {
             try {
-                def cachedResolve = new File(projectWorkDir, "${resolveChecksum}.resolve")
-                cachedResolve.withOutputStream { output ->
-                    def oos = new ObjectOutputStream(output)
-                    oos.writeObject(resolveCache)
+                if(resolveCache.size() == 5 && !readFromCache) {
+                    def cachedResolve = new File(projectWorkDir, "${resolveChecksum}.resolve")
+                    cachedResolve.withOutputStream { output ->
+                        def oos = new ObjectOutputStream(output)
+                        oos.writeObject(resolveCache)
 
+                    }
                 }
             }
             catch (e) {
@@ -978,6 +980,10 @@ class BuildSettings extends AbstractBuildSettings {
                         }else {
                             modified = true
                         }
+
+                        if(!modified) {
+                            readFromCache = true
+                        }
                     }
                 }
             }
@@ -1090,10 +1096,6 @@ class BuildSettings extends AbstractBuildSettings {
             dependencyManager.inheritsAll = true
         }
         if (dependencyConfig) {
-            if (resolveCache) {
-                dependencyManager.pluginsOnly = true
-            }
-
             dependencyManager.parseDependencies dependencyConfig
         }
 
@@ -1341,5 +1343,18 @@ class BuildSettings extends AbstractBuildSettings {
 
     String getFunctionalTestBaseUrl() {
         System.getProperty(FUNCTIONAL_BASE_URL_PROPERTY)
+    }
+
+    public File getBasePluginDescriptor () {
+        File basePluginFile = baseDir?.listFiles()?.find { it.name.endsWith("GrailsPlugin.groovy")}
+
+        if (basePluginFile?.exists()) {
+            return basePluginFile
+        }
+        return null;
+    }
+
+    boolean isPluginProject() {
+        getBasePluginDescriptor() != null
     }
 }

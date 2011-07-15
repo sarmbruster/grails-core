@@ -14,9 +14,7 @@
  */
 package org.codehaus.groovy.grails.resolve;
 
-import grails.util.BuildSettings;
-import grails.util.CollectionUtils;
-import grails.util.Metadata;
+import grails.util.*;
 import groovy.lang.Closure;
 
 import java.io.File;
@@ -363,7 +361,7 @@ public abstract class AbstractIvyDependencyManager {
         }
 
         dependencyDescriptors.add(descriptor);
-        if (descriptor.isExportedToApplication()) {
+        if (shouldIncludeDependency(descriptor)) {
             moduleDescriptor.addDependency(descriptor);
         }
     }
@@ -400,9 +398,24 @@ public abstract class AbstractIvyDependencyManager {
         pluginNameToDescriptorMap.put(name, descriptor);
         pluginDependencyDescriptors.add(descriptor);
         pluginNameToDescriptorMap.put(name, descriptor);
-        if(descriptor.isExported()) {
+        if(shouldIncludeDependency(descriptor)) {
             moduleDescriptor.addDependency(descriptor);
         }
+    }
+
+    private boolean shouldIncludeDependency(EnhancedDefaultDependencyDescriptor descriptor) {
+        return descriptor.isExported()|| (buildSettings.isPluginProject() && isExposedByThisPlugin(descriptor) );
+    }
+
+    private boolean isExposedByThisPlugin(EnhancedDefaultDependencyDescriptor descriptor) {
+        File basePluginDescriptor = buildSettings.getBasePluginDescriptor();
+        if(basePluginDescriptor != null) {
+            String basePluginName = GrailsNameUtils.getPluginName(basePluginDescriptor.getName());
+            String plugin = descriptor.getPlugin();
+            return plugin != null && plugin.equals(basePluginName);
+        }
+        return false;
+
     }
 
     /**
@@ -642,7 +655,9 @@ public abstract class AbstractIvyDependencyManager {
                     mrid, true, true, scope);
             // since the plugin dependency isn't declared but instead installed via install-plugin
             // it should be not be exported by another plugin
-            enhancedDescriptor.setExport(false);
+            if(buildSettings.isPluginProject()) {
+                enhancedDescriptor.setExport(false);
+            }
 
             registerPluginDependency(scope, enhancedDescriptor);
         }
