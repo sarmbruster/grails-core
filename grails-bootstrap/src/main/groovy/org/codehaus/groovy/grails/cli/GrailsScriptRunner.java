@@ -90,18 +90,20 @@ public class GrailsScriptRunner {
         @Override public Object call(Object... args) { return null; }
     };
     public static final String NOANSI_ARGUMENT = "plain-output";
-    private static InputStream originalIn;
-    private static PrintStream originalOut;
+    private static final String RESOLVE_DEPENDENCIES_ARGUMENT = "force-resolve";
 
+    private static InputStream originalIn;
+
+    private static PrintStream originalOut;
     private PluginPathDiscoverySupport pluginPathSupport;
     private BuildSettings settings;
-    private PrintStream out = System.out;
 
+    private PrintStream out = System.out;
     private boolean isInteractive = true;
     private URLClassLoader classLoader;
     private GrailsConsole console = GrailsConsole.getInstance();
-    private File scriptCacheDir;
 
+    private File scriptCacheDir;
     private final List<Resource> scriptsAllowedOutsideOfProject = new ArrayList<Resource>();
     private boolean useDefaultEnv = true;
 
@@ -170,6 +172,9 @@ public class GrailsScriptRunner {
         BuildSettings build = null;
         try {
             build = new BuildSettings(new File(grailsHome));
+            if(commandLine.hasOption(RESOLVE_DEPENDENCIES_ARGUMENT)) {
+                build.setModified(true);
+            }
             if (build.getRootLoader() == null) {
                 build.setRootLoader((URLClassLoader) GrailsScriptRunner.class.getClassLoader());
             }
@@ -206,6 +211,9 @@ public class GrailsScriptRunner {
             console.updateStatus("Loading Grails " + (version != null ? version : build.getGrailsVersion()));
 
             build.loadConfig();
+            if(commandLine.hasOption(RESOLVE_DEPENDENCIES_ARGUMENT)) {
+                ClasspathConfigurer.cleanResolveCache(build);
+            }
             scriptRunner.initializeState();
             try {
                 new InteractiveMode(build, scriptRunner).run();
@@ -218,8 +226,8 @@ public class GrailsScriptRunner {
             console.verbose("Base Directory: " + build.getBaseDir().getPath());
 
             try {
-                int exitCode = scriptRunner.executeCommand(
-                        script.name, script.args, script.env);
+                int exitCode = scriptRunner.executeCommand(commandLine,
+                        script.name, script.env);
                 System.exit(exitCode);
             }
             catch (ScriptNotFoundException ex) {
@@ -234,6 +242,7 @@ public class GrailsScriptRunner {
 
     public static CommandLineParser getCommandLineParser() {
         CommandLineParser parser = new CommandLineParser();
+        parser.addOption(RESOLVE_DEPENDENCIES_ARGUMENT, "Whether to force a resolve of dependencies (skipping any caching)");
         parser.addOption(VERBOSE_ARGUMENT, "Enable verbose output");
         parser.addOption(STACKTRACE_ARGUMENT, "Enable stack traces in output");
         parser.addOption(AGENT_ARGUMENT, "Enable the reloading agent");
@@ -314,6 +323,13 @@ public class GrailsScriptRunner {
             System.setProperty("grails.cli.args", "");
         }
 
+        CommandLineParser parser = getCommandLineParser();
+        CommandLine commandLine = parser.parseString(args);
+
+        return executeCommand(commandLine, scriptName, env);
+    }
+
+    private int executeCommand(CommandLine commandLine, String scriptName, String env) {
         @SuppressWarnings("hiding") GrailsConsole console = GrailsConsole.getInstance();
         // Load the BuildSettings file for this project if it exists. Note
         // that this does not load any environment-specific settings.
@@ -341,34 +357,32 @@ public class GrailsScriptRunner {
 
         BuildSettingsHolder.setSettings(settings);
 
-        return callPluginOrGrailsScript(scriptName, env);
+        return callPluginOrGrailsScript(commandLine, scriptName, env);
     }
 
-    private void setRunningEnvironment(String env) {
+    private void setRunningEnvironment(CommandLine commandLine, String env) {
         // Get the default environment if one hasn't been set.
         System.setProperty("base.dir", settings.getBaseDir().getPath());
-        System.setProperty(Environment.KEY, env);
-        System.setProperty(Environment.DEFAULT, "true");
 
         // Add some extra binding variables that are now available.
         settings.setGrailsEnv(env);
-        settings.setDefaultEnv(useDefaultEnv);
+        settings.setDefaultEnv(!commandLine.isEnvironmentSet());
     }
 
-    private int callPluginOrGrailsScript(String scriptName, String env) {
+    private int callPluginOrGrailsScript(CommandLine commandLine, String scriptName, String env) {
         initializeState(scriptName);
-        return executeScriptWithCaching(scriptName, env);
+        return executeScriptWithCaching(commandLine,scriptName, env);
     }
 
     public int executeScriptWithCaching(CommandLine commandLine) {
         processSystemArguments(commandLine);
 
         System.setProperty("grails.cli.args", commandLine.getRemainingArgsLineSeparated());
-        return executeScriptWithCaching(GrailsNameUtils.getNameFromScript(commandLine.getCommandName()), commandLine.getEnvironment());
+        return executeScriptWithCaching(commandLine, GrailsNameUtils.getNameFromScript(commandLine.getCommandName()), commandLine.getEnvironment());
     }
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
-    private int executeScriptWithCaching(String scriptName, String env) {
+    private int executeScriptWithCaching(CommandLine commandLine, String scriptName, String env) {
         List<Resource> potentialScripts;
         List<Resource> allScripts = getAvailableScripts();
         GantBinding binding = new GantBinding();
@@ -404,20 +418,20 @@ public class GrailsScriptRunner {
             if (!isGrailsProject() && !isExternalScript(scriptFile)) {
                 return handleScriptExecutedOutsideProjectError();
             }
-            return executeScriptFile(scriptName, env, binding, scriptFile);
+            return executeScriptFile(commandLine, scriptName, env, binding, scriptFile);
         }
 
-        return attemptPrecompiledScriptExecute(scriptName, env, binding, allScripts);
+        return attemptPrecompiledScriptExecute(commandLine, scriptName, env, binding, allScripts);
     }
 
-    private int attemptPrecompiledScriptExecute(String scriptName, String env, GantBinding binding, List<Resource> allScripts) {
+    private int attemptPrecompiledScriptExecute(CommandLine commandLine, String scriptName, String env, GantBinding binding, List<Resource> allScripts) {
         console.updateStatus("Running pre-compiled script");
 
         // Must be called before the binding is initialised.
-        setRunningEnvironment(env);
+        setRunningEnvironment(commandLine, env);
 
         // Get Gant to load the class by name using our class loader.
-        ScriptBindingInitializer bindingInitializer = new ScriptBindingInitializer(
+        ScriptBindingInitializer bindingInitializer = new ScriptBindingInitializer(commandLine,
                 settings, pluginPathSupport, isInteractive);
         Gant gant = new Gant(bindingInitializer.initBinding(binding, scriptName), classLoader);
 
@@ -440,15 +454,15 @@ public class GrailsScriptRunner {
         return executeWithGantInstance(gant, DO_NOTHING_CLOSURE).exitCode;
     }
 
-    private int executeScriptFile(String scriptName, String env, GantBinding binding, Resource scriptFile) {
+    private int executeScriptFile(CommandLine commandLine, String scriptName, String env, GantBinding binding, Resource scriptFile) {
         // We can now safely set the default environment
         String scriptFileName = getScriptNameFromFile(scriptFile);
-        setRunningEnvironment(env);
+        setRunningEnvironment(commandLine, env);
         binding.setVariable("scriptName", scriptFileName);
 
         // Setup the script to call.
         ScriptBindingInitializer bindingInitializer = new ScriptBindingInitializer(
-             settings, pluginPathSupport, isInteractive);
+                commandLine, settings, pluginPathSupport, isInteractive);
         Gant gant = new Gant(bindingInitializer.initBinding(binding, scriptName), classLoader);
         gant.setUseCache(true);
         gant.setCacheDirectory(scriptCacheDir);

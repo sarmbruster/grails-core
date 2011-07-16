@@ -129,7 +129,7 @@ class IvyDependencyManagerTests extends GroovyTestCase {
             }
         }
 
-        def report = manager.resolvePluginDependencies()
+        def report = manager.resolveDependencies()
     }
 
     void testCheckPluginDependencyScope() {
@@ -148,6 +148,51 @@ class IvyDependencyManagerTests extends GroovyTestCase {
 
         assertTrue "should have included configuration", dd.isSupportedInConfiguration("runtime")
         assertFalse "should not have included configuration", dd.isSupportedInConfiguration("test ")
+    }
+
+    void testVersionRangeInString() {
+        def settings = new BuildSettings()
+        def manager = new IvyDependencyManager("test", "0.1",settings)
+
+        manager.parseDependencies {
+            plugins {
+                compile ":acegi:[0.5.1,0.5.3]"
+            }
+        }
+
+        EnhancedDefaultDependencyDescriptor dd = manager.getPluginDependencyDescriptor("acegi")
+
+        assert dd != null
+
+        assert dd.dependencyRevisionId.revision == '[0.5.1,0.5.3]'
+
+        manager = new IvyDependencyManager("test", "0.1",settings)
+
+        manager.parseDependencies {
+            plugins {
+                compile ":acegi:0.5.+"
+            }
+        }
+
+        dd = manager.getPluginDependencyDescriptor("acegi")
+
+        assert dd != null
+
+        assert dd.dependencyRevisionId.revision == '0.5.+'
+
+       manager = new IvyDependencyManager("test", "0.1",settings)
+
+        manager.parseDependencies {
+            plugins {
+                compile ":acegi:(,1.4]"
+            }
+        }
+
+        dd = manager.getPluginDependencyDescriptor("acegi")
+
+        assert dd != null
+
+        assert dd.dependencyRevisionId.revision == '(,1.4]'
     }
 
     void testDeclarePluginDependencies() {
@@ -542,8 +587,8 @@ class IvyDependencyManagerTests extends GroovyTestCase {
         assertEquals 'runtime', foocache.@conf.text()
         assertEquals 'true', foocache.@transitive.text()
 
-        assertEquals 'jms', foocache.excludes.@name.text()
-        assertEquals '*', foocache.excludes.@group.text()
+        assertEquals 'xml-apisxmlParserAPIsjms', foocache.excludes.@name.text()
+        assertEquals '***', foocache.excludes.@group.text()
 
         // should not include inherited dependencies
         def inherited = dependencies.find { it.@name == 'grails-test' }

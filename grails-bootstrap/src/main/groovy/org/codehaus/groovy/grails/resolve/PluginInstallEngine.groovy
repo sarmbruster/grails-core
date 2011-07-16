@@ -125,6 +125,14 @@ class PluginInstallEngine {
         checkPluginsToUninstall(pluginDescriptors)
     }
 
+    void checkPluginsToUninstall() {
+        IvyDependencyManager dependencyManager = settings.dependencyManager
+
+        // Get the plugin dependency descriptors for the max version of each applicable dependency
+        def pluginDescriptors = dependencyManager.effectivePluginDependencyDescriptors
+
+        checkPluginsToUninstall(pluginDescriptors)
+    }
     /**
      * Installs a list of plugins
      *
@@ -181,7 +189,7 @@ class PluginInstallEngine {
      * @param zipFile The plugin zip file
      * @param globalInstall Whether it is a global install or not (optional)
      */
-    void installPlugin(File zipFile, boolean globalInstall = false, boolean overwrite = false) {
+    boolean installPlugin(File zipFile, boolean globalInstall = false, boolean overwrite = false) {
 
         if (!zipFile.exists()) {
             errorHandler "Plugin zip not found at location: ${zipFile.absolutePath}"
@@ -197,7 +205,7 @@ class PluginInstallEngine {
      * @param zipURL The zip URL
      * @param globalInstall Whether it is a global install or not (optional)
      */
-    void installPlugin(URL zipURL, boolean globalInstall = false) {
+    boolean installPlugin(URL zipURL, boolean globalInstall = false) {
         def s = zipURL.toString()
         def filename = s[s.lastIndexOf("/")..-1]
         def file = File.createTempFile(filename[0..-4], ".zip")
@@ -481,7 +489,7 @@ You cannot upgrade a plugin that is configured via BuildConfig.groovy, remove th
                 eventHandler "PluginUninstalled", "Uninstalled plugin [${name}]."
             }
             else {
-                errorHandler("No plugin [$name${version ? '-' + version : ''}] installed, cannot uninstall")
+                GrailsConsole.getInstance().warning("No plugin [$name${version ? '-' + version : ''}] installed, cannot uninstall")
             }
         }
         catch (e) {
@@ -585,8 +593,14 @@ You cannot upgrade a plugin that is configured via BuildConfig.groovy, remove th
             }
         }
 
+
         pluginsToUninstall = pluginsToUninstall.findAll { GrailsPluginInfo pluginInfo ->
-            !dependencyManager.isPluginTransitivelyIncluded(pluginInfo.name) && pluginInfo.pluginDir.file != settings.baseDir
+            def pluginFullName = "${pluginInfo.name}-${pluginInfo.version}.zip".toString()
+            !settings.pluginDependencies.any {
+                it.name == pluginFullName
+            } &&
+            !dependencyManager.isPluginTransitivelyIncluded(pluginInfo.name) &&
+            pluginInfo.pluginDir.file != settings.baseDir
         }
 
         for (GrailsPluginInfo pluginInfo in pluginsToUninstall) {
@@ -595,10 +609,10 @@ You cannot upgrade a plugin that is configured via BuildConfig.groovy, remove th
             if ((pluginDirFile == settings.baseDir) || settings.isInlinePluginLocation(pluginDirFile)) continue;
 
             if (pluginSettings.isGlobalPluginLocation(pluginDir)) {
-                registerMetadataForPluginLocation(pluginDir)
+                uninstallPlugin(pluginInfo.name, pluginInfo.version)
             }
             else {
-                registerMetadataForPluginLocation(pluginDir)
+                uninstallPlugin(pluginInfo.name, pluginInfo.version)
             }
         }
     }
