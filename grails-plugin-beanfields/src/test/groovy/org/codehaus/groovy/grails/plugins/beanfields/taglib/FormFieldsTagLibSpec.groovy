@@ -116,7 +116,7 @@ class FormFieldsTagLibSpec extends Specification {
 		output =~ /max="10"/
 	}
 
-	@Unroll({"input for a $type property with $constraints constraints matches $outputPattern"})
+	@Unroll({"input for a $type.name property with $constraints constraints matches $outputPattern"})
 	def "inputs have constraint-driven attributes where appropriate"() {
 		given:
 		def model = [type: type, property: "prop", constraints: constraints]
@@ -135,7 +135,7 @@ class FormFieldsTagLibSpec extends Specification {
 		String | [editable: false] | /readonly=""/
 	}
 
-	@Unroll({"input for a $type property with an inList constraint of $inListConstraint is a select"})
+	@Unroll({"input for a $type.name property with an inList constraint of $inListConstraint is a select"})
 	def "inputs for properties with inList constraint are selects"() {
 		given:
 		def model = [type: type, property: "prop", constraints: [inList: inListConstraint]]
@@ -155,7 +155,7 @@ class FormFieldsTagLibSpec extends Specification {
 		String | ["catflap", "rubberplant", "marzipan"]
 	}
 
-	@Unroll({"input for an optional $type property ${constraints ? "with $constraints constraints " : ''}has a no-selection option"})
+	@Unroll({"input for an optional $type.name property ${constraints ? "with $constraints constraints " : ''}has a no-selection option"})
 	def "optional properties with select inputs have a no-selection option"() {
 		given:
 		def model = [type: type, property: "prop", constraints: constraints]
@@ -173,7 +173,7 @@ class FormFieldsTagLibSpec extends Specification {
 		String      | [inList: ["catflap", "rubberplant", "marzipan"]]
 	}
 
-	@Unroll({"input for a required $type property ${constraints ? "with $constraints constraints " : ''}does not have a no-selection option"})
+	@Unroll({"input for a required $type.name property ${constraints ? "with $constraints constraints " : ''}does not have a no-selection option"})
 	def "required properties with select inputs have a no-selection option"() {
 		given:
 		def model = [type: type, property: "prop", constraints: constraints, required: true]

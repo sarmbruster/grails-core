@@ -71,36 +71,11 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 		if (!attrs.constraints.editable) model.readonly = ""
 
 		if (attrs.type in String) {
-			if (attrs.constraints.inList) {
-				model.from = attrs.constraints.inList
-				if (!attrs.required) model.noSelection = ["": ""]
-				return g.select(model)
-			} else if (attrs.constraints.password) model.type = "password"
-			else if (attrs.constraints.email) model.type = "email"
-			else if (attrs.constraints.url) model.type = "url"
-			else model.type = "text"
-
-			if (attrs.constraints.matches) model.pattern = attrs.constraints.matches
-			if (attrs.constraints.maxSize) model.maxlength = attrs.constraints.maxSize
-
-			return g.field(model)
+			return renderStringInput(model, attrs)
 		} else if (attrs.type in [boolean, Boolean]) {
 			return g.checkBox(model)
 		} else if (attrs.type.isPrimitive() || attrs.type in Number) {
-			if (attrs.constraints.inList) {
-				model.from = attrs.constraints.inList
-				if (!attrs.required) model.noSelection = ["": ""]
-				return g.select(model)
-			} else if (attrs.constraints.range) {
-				model.type = "range"
-				model.min = attrs.constraints.range.from
-				model.max = attrs.constraints.range.to
-			} else {
-				model.type = "number"
-				if (attrs.constraints.min != null) model.min = attrs.constraints.min
-				if (attrs.constraints.max != null) model.max = attrs.constraints.max
-			}
-			return g.field(model)
+			return renderNumericInput(model, attrs)
 		} else if (attrs.type in URL) {
 			return g.field(model + [type: "url"])
 		} else if (attrs.type.isEnum()) {
@@ -120,6 +95,39 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 		} else {
 			return null
 		}
+	}
+
+	private String renderStringInput(Map model, Map attrs) {
+		if (attrs.constraints.inList) {
+			model.from = attrs.constraints.inList
+			if (!attrs.required) model.noSelection = ["": ""]
+			return g.select(model)
+		} else if (attrs.constraints.password) model.type = "password"
+		else if (attrs.constraints.email) model.type = "email"
+		else if (attrs.constraints.url) model.type = "url"
+		else model.type = "text"
+
+		if (attrs.constraints.matches) model.pattern = attrs.constraints.matches
+		if (attrs.constraints.maxSize) model.maxlength = attrs.constraints.maxSize
+
+		return g.field(model)
+	}
+
+	private String renderNumericInput(Map model, Map attrs) {
+		if (attrs.constraints.inList) {
+			model.from = attrs.constraints.inList
+			if (!attrs.required) model.noSelection = ["": ""]
+			return g.select(model)
+		} else if (attrs.constraints.range) {
+			model.type = "range"
+			model.min = attrs.constraints.range.from
+			model.max = attrs.constraints.range.to
+		} else {
+			model.type = "number"
+			if (attrs.constraints.min != null) model.min = attrs.constraints.min
+			if (attrs.constraints.max != null) model.max = attrs.constraints.max
+		}
+		return g.field(model)
 	}
 
 	// TODO: cache the result of this lookup
