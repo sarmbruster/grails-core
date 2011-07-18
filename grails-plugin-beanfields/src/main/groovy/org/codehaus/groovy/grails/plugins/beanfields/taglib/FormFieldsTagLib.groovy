@@ -67,11 +67,31 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 		model.name = attrs.property
 		model.value = attrs.value
 		if (attrs.required) model.required = ""
+		if (attrs.invalid) model.invalid = ""
+		if (!attrs.constraints.editable) model.readonly = ""
 
-		if (attrs.type in [boolean, Boolean]) {
+		if (attrs.type in String) {
+			if (attrs.constraints.inList) {
+				model.from = attrs.constraints.inList
+				if (!attrs.required) model.noSelection = ["": ""]
+				return g.select(model)
+			} else if (attrs.constraints.password) model.type = "password"
+			else if (attrs.constraints.email) model.type = "email"
+			else if (attrs.constraints.url) model.type = "url"
+			else model.type = "text"
+
+			if (attrs.constraints.matches) model.pattern = attrs.constraints.matches
+			if (attrs.constraints.maxSize) model.maxlength = attrs.constraints.maxSize
+
+			return g.field(model)
+		} else if (attrs.type in [boolean, Boolean]) {
 			return g.checkBox(model)
 		} else if (attrs.type.isPrimitive() || attrs.type in Number) {
-			if (attrs.constraints.range) {
+			if (attrs.constraints.inList) {
+				model.from = attrs.constraints.inList
+				if (!attrs.required) model.noSelection = ["": ""]
+				return g.select(model)
+			} else if (attrs.constraints.range) {
 				model.type = "range"
 				model.min = attrs.constraints.range.from
 				model.max = attrs.constraints.range.to
@@ -84,7 +104,9 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 		} else if (attrs.type in URL) {
 			return g.field(model + [type: "url"])
 		} else if (attrs.type.isEnum()) {
-			return g.select(model + [from: attrs.type.values()])
+			model.from = attrs.type.values()
+			if (!attrs.required) model.noSelection = ["": ""]
+			return g.select(model)
 		} else if (attrs.type in [Date, Calendar, java.sql.Date, java.sql.Time]) {
 			return g.datePicker(model)
 		} else if (attrs.type in [byte[], Byte[]]) {
@@ -96,7 +118,7 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 		} else if (attrs.type in Locale) {
 			return g.localeSelect(model)
 		} else {
-			return g.textField(model)
+			return null
 		}
 	}
 
