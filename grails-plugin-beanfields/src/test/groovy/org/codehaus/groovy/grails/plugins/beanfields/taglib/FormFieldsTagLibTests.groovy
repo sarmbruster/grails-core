@@ -246,16 +246,10 @@ class FormFieldsTagLibTests extends AbstractGrailsTagTests {
 		assert applyTemplate('<form:field bean="personInstance" property="name" invalid="true"/>', [personInstance: personInstance]) == "invalid=true"
 	}
 
-	void testInputForStringIsTextField() {
+	void testRenderedInputIsPassedToTemplate() {
 		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", '${input}')
 
 		assert applyTemplate('<form:field bean="personInstance" property="name"/>', [personInstance: personInstance]) == '<input type="text" name="name" value="Bart Simpson" required="" id="name" />'
-	}
-
-	void testInputForBooleanIsCheckbox() {
-		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", '${input}')
-
-		assert applyTemplate('<form:field bean="personInstance" property="minor"/>', [personInstance: personInstance]) == '<input type="hidden" name="_minor" /><input type="checkbox" name="minor" checked="checked" id="minor"  />'
 	}
 
 }
