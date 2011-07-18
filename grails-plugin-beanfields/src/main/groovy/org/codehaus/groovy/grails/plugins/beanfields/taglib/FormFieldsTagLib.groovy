@@ -67,12 +67,36 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 		model.name = attrs.property
 		model.value = attrs.value
 		if (attrs.required) model.required = ""
-		switch (attrs.type) {
-			case String:
-				return g.textField(model)
-			case boolean:
-			case Boolean:
-				return g.checkBox(model)
+
+		if (attrs.type in [boolean, Boolean]) {
+			return g.checkBox(model)
+		} else if (attrs.type.isPrimitive() || attrs.type in Number) {
+			if (attrs.constraints.range) {
+				model.type = "range"
+				model.min = attrs.constraints.range.from
+				model.max = attrs.constraints.range.to
+			} else {
+				model.type = "number"
+				if (attrs.constraints.min != null) model.min = attrs.constraints.min
+				if (attrs.constraints.max != null) model.max = attrs.constraints.max
+			}
+			return g.field(model)
+		} else if (attrs.type in URL) {
+			return g.field(model + [type: "url"])
+		} else if (attrs.type.isEnum()) {
+			return g.select(model + [from: attrs.type.values()])
+		} else if (attrs.type in [Date, Calendar, java.sql.Date, java.sql.Time]) {
+			return g.datePicker(model)
+		} else if (attrs.type in [byte[], Byte[]]) {
+			return g.field(model + [type: "file"])
+		} else if (attrs.type in TimeZone) {
+			return g.timeZoneSelect(model)
+		} else if (attrs.type in Currency) {
+			return g.currencySelect(model)
+		} else if (attrs.type in Locale) {
+			return g.localeSelect(model)
+		} else {
+			return g.textField(model)
 		}
 	}
 
