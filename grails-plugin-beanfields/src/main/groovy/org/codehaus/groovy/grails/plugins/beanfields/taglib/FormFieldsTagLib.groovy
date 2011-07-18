@@ -46,6 +46,7 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 				label: resolveLabelText(propertyAccessor, attrs),
 				value: attrs.value ?: propertyAccessor.value ?: attrs.default,
 				constraints: propertyAccessor.constraints,
+				persistentProperty: propertyAccessor.persistentProperty,
 				errors: propertyAccessor.errors.collect { message(error: it) },
 				required: attrs.containsKey("required") ? Boolean.valueOf(attrs.required) : propertyAccessor.required,
 				invalid: attrs.containsKey("invalid") ? Boolean.valueOf(attrs.invalid) : propertyAccessor.invalid,
@@ -82,6 +83,8 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 			model.from = attrs.type.values()
 			if (!attrs.required) model.noSelection = ["": ""]
 			return g.select(model)
+		} else if (attrs.persistentProperty.oneToOne || attrs.persistentProperty.manyToOne) {
+			return renderNToOneInput(model, attrs)
 		} else if (attrs.type in [Date, Calendar, java.sql.Date, java.sql.Time]) {
 			return g.datePicker(model)
 		} else if (attrs.type in [byte[], Byte[]]) {
@@ -128,6 +131,15 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 			if (attrs.constraints.max != null) model.max = attrs.constraints.max
 		}
 		return g.field(model)
+	}
+
+	private String renderNToOneInput(Map model, Map attrs) {
+		model.name = "${attrs.property}.id"
+		model.id = attrs.property
+		model.from = attrs.type.list()
+		model.optionKey = "id" // TODO: handle alternate id names
+		if (!attrs.required) model.noSelection = ["null": ""]
+		return g.select(model)
 	}
 
 	// TODO: cache the result of this lookup
