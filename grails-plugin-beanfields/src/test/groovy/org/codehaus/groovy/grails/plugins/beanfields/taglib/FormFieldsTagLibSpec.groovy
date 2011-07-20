@@ -10,12 +10,20 @@ import spock.lang.*
 @Mock(Person)
 class FormFieldsTagLibSpec extends Specification {
 
+	@Shared def personDomainClass = new DefaultGrailsDomainClass(Person)
 	@Shared def basicProperty = new MockPersistentProperty()
-	@Shared def oneToOneProperty = new MockPersistentProperty(oneToOne: true)
-	@Shared def manyToOneProperty = new MockPersistentProperty(manyToOne: true)
+	@Shared def oneToOneProperty = new MockPersistentProperty(oneToOne: true, referencedPropertyType: Person, referencedDomainClass: personDomainClass)
+	@Shared def manyToOneProperty = new MockPersistentProperty(manyToOne: true, referencedPropertyType: Person, referencedDomainClass: personDomainClass)
+	@Shared def manyToManyProperty = new MockPersistentProperty(manyToMany: true, referencedPropertyType: Person, referencedDomainClass: personDomainClass)
+	@Shared def oneToManyProperty = new MockPersistentProperty(oneToMany: true, referencedPropertyType: Person, referencedDomainClass: personDomainClass)
+	List<Person> people
 
 	def setup() {
 		Object.metaClass.encodeAsHTML = {-> delegate } // TODO: need to tear this down properly
+
+		people = ["Bart Simpson", "Homer Simpson", "Monty Burns"].collect {
+			new Person(name: it).save(failOnError: true)
+		}
 	}
 
 	@Unroll({"input for a $type.name property matches '$outputPattern'"})
@@ -36,6 +44,24 @@ class FormFieldsTagLibSpec extends Specification {
 		URL     | /input type="url"/
 		Byte[]  | /input type="file"/
 		byte[]  | /input type="file"/
+	}
+
+	@Unroll({"input for a $type.name property with a value of '$value' matches '$outputPattern'"})
+	def "input values"() {
+		given:
+		def model = [type: type, property: "prop", constraints: [:], persistentProperty: basicProperty, value: value]
+
+		expect:
+		tagLib.renderInput(model) =~ outputPattern
+
+		where:
+		type    | value                | outputPattern
+		String  | "catflap"            | /value="catflap"/
+		Boolean | Boolean.TRUE         | /checked="checked"/
+		boolean | true                 | /checked="checked"/
+		int     | 1337                 | /value="1337"/
+		Integer | new Integer(1337)    | /value="1337"/
+		URL     | "http://grails.org/" | /value="http:\/\/grails.org\/"/
 	}
 
 	@Unroll({"input for ${required ? 'a required' : 'an optional'} property ${required ? 'has' : 'does not have'} the required attribute"})
@@ -76,6 +102,17 @@ class FormFieldsTagLibSpec extends Specification {
 		}
 	}
 
+	def "enum select has correct selected option"() {
+		given:
+		def model = [type: Environment, property: "prop", constraints: [:], persistentProperty: basicProperty, value: Environment.PRODUCTION]
+
+		when:
+		def output = tagLib.renderInput(model)
+
+		then:
+		output =~ /<option value="PRODUCTION" selected="selected"/
+	}
+
 	@Unroll({"input for a $type.name property is a special select type"})
 	def "special select types"() {
 		given:
@@ -93,6 +130,67 @@ class FormFieldsTagLibSpec extends Specification {
 		TimeZone      | /<option value="Europe\/London"/
 		Locale        | /<option value="en_GB"/
 		Currency      | /<option value="GBP"/
+	}
+
+	@Unroll({"input for a $type.name property with a value of '$value' has the correct option(s) selected"})
+	def "special select types"() {
+		given:
+		def model = [type: type, property: "prop", constraints: [:], persistentProperty: basicProperty, value: value]
+
+		expect:
+		tagLib.renderInput(model) =~ outputPattern
+
+		where:
+		type          | value                             | outputPattern
+		Date          | new Date(108, 9, 2)               | /option value="2008" selected="selected"/
+		Calendar      | new GregorianCalendar(108, 9, 2)  | /option value="2008" selected="selected"/
+		java.sql.Date | new java.sql.Date(108, 9, 2)      | /option value="2008" selected="selected"/
+		java.sql.Time | new java.sql.Time(108, 9, 2)      | /option value="2008" selected="selected"/
+		TimeZone      | TimeZone.forName("Europe/London") | /<option value="Europe\/London" selected="selected"/
+		Locale        | Locale.CANADA_FRENCH              | /<option value="fr_CA" selected="selected"/
+		Currency      | Currency.forName("JPY")           | /<option value="JPY" selected="selected"/
+	}
+
+	@Unroll({"select for ${required ? 'a required' : 'an optional'} $type.name property ${required ? 'does not have' : 'has'} a no-selection option"})
+	def "optional date and time select types"() {
+		given:
+		def model = [type: type, property: "prop", constraints: [:], persistentProperty: basicProperty, required: required]
+
+		when:
+		def output = tagLib.renderInput(model)
+
+		then:
+		output.contains('<option value=""') ^ required
+		output.contains('default="none"') ^ required
+
+		where:
+		type          | required
+		Date          | true
+		Calendar      | true
+		java.sql.Date | true
+		java.sql.Time | true
+		Date          | false
+		Calendar      | false
+		java.sql.Date | false
+		java.sql.Time | false
+	}
+
+	@Unroll({"select for ${required ? 'a required' : 'an optional'} $type.name property ${required ? 'does not have' : 'has'} a no-selection option"})
+	def "optional special select types"() {
+		given:
+		def model = [type: type, property: "prop", constraints: [:], persistentProperty: basicProperty, required: required]
+
+		expect:
+		tagLib.renderInput(model).contains('<option value=""></option>') ^ required
+
+		where:
+		type     | required
+		TimeZone | true
+		Locale   | true
+		Currency | true
+		TimeZone | false
+		Locale   | false
+		Currency | false
 	}
 
 	@Unroll({"input for a String property with $constraints constraints matches $outputPattern"})
@@ -167,11 +265,8 @@ class FormFieldsTagLibSpec extends Specification {
 		given:
 		def model = [type: type, property: "prop", constraints: constraints, persistentProperty: basicProperty]
 
-		when:
-		def output = tagLib.renderInput(model)
-
-		then:
-		output =~ /<option value=""><\/option>/
+		expect:
+		tagLib.renderInput(model) =~ /<option value=""><\/option>/
 
 		where:
 		type        | constraints
@@ -185,11 +280,8 @@ class FormFieldsTagLibSpec extends Specification {
 		given:
 		def model = [type: type, property: "prop", constraints: constraints, required: true, persistentProperty: basicProperty]
 
-		when:
-		def output = tagLib.renderInput(model)
-
-		then:
-		!(output =~ /<option value=""><\/option>/)
+		expect:
+		!(tagLib.renderInput(model) =~ /<option value=""><\/option>/)
 
 		where:
 		type        | constraints
@@ -199,13 +291,8 @@ class FormFieldsTagLibSpec extends Specification {
 	}
 
 	@Unroll({"input for a $description property is a select"})
-	def "inputs for n-to-one associations are selects"() {
+	def "inputs for n-to-n associations are selects"() {
 		given:
-		["Bart Simpson", "Homer Simpson", "Monty Burns"].each {
-			new Person(name: it).save(failOnError: true)
-		}
-
-		and:
 		def model = [type: type, property: "prop", constraints: [:], persistentProperty: persistentProperty]
 
 		when:
@@ -214,31 +301,42 @@ class FormFieldsTagLibSpec extends Specification {
 		then:
 		output =~ /select name="prop.id"/
 		output =~ /id="prop"/
-		output =~ /option value="1" >Bart Simpson/
-		output =~ /option value="2" >Homer Simpson/
-		output =~ /option value="3" >Monty Burns/
+		people.every {
+			output =~ /option value="$it.id" >$it.name/
+		}
 
 		where:
 		type   | persistentProperty | description
 		Person | oneToOneProperty   | "one-to-one"
 		Person | manyToOneProperty  | "many-to-one"
+		Set    | manyToManyProperty | "many-to-many"
 	}
 
-	@Unroll({"input for ${required ? 'a required' : 'an optional'} $description property ${required ? 'has' : 'does not have'} a no-selection option"})
-	def "optional inputs for n-to-one associations have no-selection options"() {
+	@Unroll({"select for a $description property with a value of $value has the correct option selected"})
+	def "inputs for n-to-n associations set selected value"() {
 		given:
-		["Bart Simpson", "Homer Simpson", "Monty Burns"].each {
-			new Person(name: it).save(failOnError: true)
-		}
-
-		and:
-		def model = [type: type, property: "prop", constraints: [:], persistentProperty: persistentProperty, required: required]
+		def model = [type: type, property: "prop", constraints: [:], persistentProperty: persistentProperty, value: value]
 
 		when:
 		def output = tagLib.renderInput(model)
 
 		then:
-		output.contains('<option value="null"></option>') ^ required
+		output =~ /option value="${people[1].id}" selected="selected">${people[1].name}/
+
+		where:
+		type   | persistentProperty | description    | value
+		Person | oneToOneProperty   | "one-to-one"   | people[1]
+		Person | manyToOneProperty  | "many-to-one"  | people[1]
+		Set    | manyToManyProperty | "many-to-many" | [people[1]]
+	}
+
+	@Unroll({"input for ${required ? 'a required' : 'an optional'} $description property ${required ? 'has' : 'does not have'} a no-selection option"})
+	def "optional inputs for n-to-n associations have no-selection options"() {
+		given:
+		def model = [type: type, property: "prop", constraints: [:], persistentProperty: persistentProperty, required: required]
+
+		expect:
+		tagLib.renderInput(model).contains('<option value="null"></option>') ^ required
 
 		where:
 		type   | persistentProperty | required | description
@@ -246,6 +344,28 @@ class FormFieldsTagLibSpec extends Specification {
 		Person | manyToOneProperty  | true     | "many-to-one"
 		Person | oneToOneProperty   | false    | "one-to-one"
 		Person | manyToOneProperty  | false    | "many-to-one"
+	}
+
+	def "select for a many-to-many property has the multiple attribute"() {
+		given:
+		def model = [type: Set, property: "prop", constraints: [:], persistentProperty: manyToManyProperty]
+
+		expect:
+		tagLib.renderInput(model) =~ /multiple=""/
+	}
+
+	def "a one-to-many property has a list of links instead of an input"() {
+		given:
+		def model = [type: Set, property: "prop", constraints: [:], persistentProperty: oneToManyProperty, value: people]
+
+		when:
+		def output = tagLib.renderInput(model)
+
+		then:
+		people.every {
+			output =~ /<a href="person\/show\/$it.id">$it.name<\/a>/
+		}
+		output =~ /<a href=""person\/create\?">Add Person<\/a>/
 	}
 
 }

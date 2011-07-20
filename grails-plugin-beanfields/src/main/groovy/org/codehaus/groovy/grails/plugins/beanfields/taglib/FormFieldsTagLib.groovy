@@ -83,17 +83,24 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 			model.from = attrs.type.values()
 			if (!attrs.required) model.noSelection = ["": ""]
 			return g.select(model)
-		} else if (attrs.persistentProperty.oneToOne || attrs.persistentProperty.manyToOne) {
-			return renderNToOneInput(model, attrs)
+		} else if (attrs.persistentProperty.oneToOne || attrs.persistentProperty.manyToOne || attrs.persistentProperty.manyToMany) {
+			return renderAssociationInput(model, attrs)
 		} else if (attrs.type in [Date, Calendar, java.sql.Date, java.sql.Time]) {
+			if (!attrs.required) {
+				model.noSelection = ["": ""]
+				model.default = "none"
+			}
 			return g.datePicker(model)
 		} else if (attrs.type in [byte[], Byte[]]) {
 			return g.field(model + [type: "file"])
 		} else if (attrs.type in TimeZone) {
+			if (!attrs.required) model.noSelection = ["": ""]
 			return g.timeZoneSelect(model)
 		} else if (attrs.type in Currency) {
+			if (!attrs.required) model.noSelection = ["": ""]
 			return g.currencySelect(model)
 		} else if (attrs.type in Locale) {
+			if (!attrs.required) model.noSelection = ["": ""]
 			return g.localeSelect(model)
 		} else {
 			return null
@@ -133,13 +140,27 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 		return g.field(model)
 	}
 
-	private String renderNToOneInput(Map model, Map attrs) {
+	private String renderAssociationInput(Map model, Map attrs) {
 		model.name = "${attrs.property}.id"
 		model.id = attrs.property
 		model.from = attrs.type.list()
 		model.optionKey = "id" // TODO: handle alternate id names
-		if (!attrs.required) model.noSelection = ["null": ""]
+		if (attrs.persistentProperty.manyToMany) model.multiple = ""
+		else if (!attrs.required) model.noSelection = ["null": ""]
 		return g.select(model)
+	}
+
+	private String renderManyToOneInput(Map model, Map attrs) {
+		def buffer = new StringBuilder()
+		buffer << '<ul>'
+		model.value.each {
+			buffer << '<li>'
+			def controllerName = attrs.persistentProperty.referencedDomainClass.propertyName
+			buffer << g.link(controller: controllerName, action: "show", id: it.id, it.encodeAsHTML())
+			buffer << '</li>'
+		}
+		buffer << '</ul>'
+		buffer as String
 	}
 
 	// TODO: cache the result of this lookup
