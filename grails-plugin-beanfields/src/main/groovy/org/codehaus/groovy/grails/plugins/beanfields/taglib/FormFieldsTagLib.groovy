@@ -83,21 +83,35 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 			model.from = attrs.type.values()
 			if (!attrs.required) model.noSelection = ["": ""]
 			return g.select(model)
-		} else if (attrs.persistentProperty.oneToOne || attrs.persistentProperty.manyToOne) {
-			return renderNToOneInput(model, attrs)
+		} else if (attrs.persistentProperty.oneToOne || attrs.persistentProperty.manyToOne || attrs.persistentProperty.manyToMany) {
+			return renderAssociationInput(model, attrs)
+		} else if (attrs.persistentProperty.oneToMany) {
+			return renderOneToManyInput(model, attrs)
 		} else if (attrs.type in [Date, Calendar, java.sql.Date, java.sql.Time]) {
-			return g.datePicker(model)
+			return renderDateTimeInput(model, attrs)
 		} else if (attrs.type in [byte[], Byte[]]) {
 			return g.field(model + [type: "file"])
 		} else if (attrs.type in TimeZone) {
+			if (!attrs.required) model.noSelection = ["": ""]
 			return g.timeZoneSelect(model)
 		} else if (attrs.type in Currency) {
+			if (!attrs.required) model.noSelection = ["": ""]
 			return g.currencySelect(model)
 		} else if (attrs.type in Locale) {
+			if (!attrs.required) model.noSelection = ["": ""]
 			return g.localeSelect(model)
 		} else {
 			return null
 		}
+	}
+
+	private String renderDateTimeInput(Map model, Map attrs) {
+		model.precision = attrs.type == java.sql.Time ? "minute" : "day"
+		if (!attrs.required) {
+			model.noSelection = ["": ""]
+			model.default = "none"
+		}
+		return g.datePicker(model)
 	}
 
 	private String renderStringInput(Map model, Map attrs) {
@@ -133,13 +147,37 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 		return g.field(model)
 	}
 
-	private String renderNToOneInput(Map model, Map attrs) {
+	private String renderAssociationInput(Map model, Map attrs) {
 		model.name = "${attrs.property}.id"
 		model.id = attrs.property
-		model.from = attrs.type.list()
+		model.from = attrs.persistentProperty.referencedPropertyType.list()
 		model.optionKey = "id" // TODO: handle alternate id names
-		if (!attrs.required) model.noSelection = ["null": ""]
+		if (attrs.persistentProperty.manyToMany) {
+			model.multiple = ""
+			model.value = attrs.value*.id
+		} else {
+			if (!attrs.required) model.noSelection = ["null": ""]
+			model.value = attrs.value?.id
+		}
 		return g.select(model)
+	}
+
+	private String renderOneToManyInput(Map model, Map attrs) {
+		def buffer = new StringBuilder()
+		buffer << '<ul>'
+		def referencedDomainClass = attrs.persistentProperty.referencedDomainClass
+		def controllerName = referencedDomainClass.propertyName
+		model.value.each {
+			buffer << '<li>'
+			buffer << g.link(controller: controllerName, action: "show", id: it.id, it.toString().encodeAsHTML())
+			buffer << '</li>'
+		}
+		buffer << '</ul>'
+		def referencedTypeLabel = message(code: "${referencedDomainClass.propertyName}.label", default: referencedDomainClass.shortName)
+		def addLabel = g.message(code: 'default.add.label', args: [referencedTypeLabel])
+		println "id=$attrs.bean.id"
+		buffer << g.link(controller: controllerName, action: "create", params: ["${attrs.beanDomainClass.propertyName}.id": attrs.bean.id], addLabel)
+		buffer as String
 	}
 
 	// TODO: cache the result of this lookup
