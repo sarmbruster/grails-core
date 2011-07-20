@@ -7,7 +7,7 @@ import org.codehaus.groovy.grails.commons.*
 import spock.lang.*
 
 @TestFor(FormFieldsTagLib)
-@Mock(Person)
+@Mock([Person, Thing])
 class FormFieldsTagLibSpec extends Specification {
 
 	@Shared def personDomainClass = new DefaultGrailsDomainClass(Person)
@@ -389,7 +389,11 @@ class FormFieldsTagLibSpec extends Specification {
 
 	def "a one-to-many property has a list of links instead of an input"() {
 		given:
-		def model = [type: Set, property: "prop", constraints: [:], persistentProperty: oneToManyProperty, value: people]
+		messageSource.addMessage("default.add.label", request.locale, "Add {0}")
+
+		and:
+		def bean = new Thing().save(failOnError: true)
+		def model = [bean: bean, beanDomainClass: new DefaultGrailsDomainClass(Thing), type: Set, property: "prop", constraints: [:], persistentProperty: oneToManyProperty, value: people]
 
 		when:
 		def output = tagLib.renderInput(model)
@@ -400,10 +404,13 @@ class FormFieldsTagLibSpec extends Specification {
 		}
 
 		and:
-		output =~ /<a href=""\person\/create\?">Add Person<\/a>/
+		output.contains("""<a href="/person/create?thing.id=$bean.id">Add Person</a>""")
 	}
 
 }
+
+@Entity
+class Thing { }
 
 @Entity
 class Person {
