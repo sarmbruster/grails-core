@@ -395,10 +395,12 @@ class FormFieldsTagLibSpec extends Specification {
 		def output = tagLib.renderInput(model)
 
 		then:
-		output =~ /<a href="person\/show\/${people[0].id}">${people[0].name}<\/a>/
-		output =~ /<a href="person\/show\/${people[1].id}">${people[1].name}<\/a>/
-		output =~ /<a href="person\/show\/${people[2].id}">${people[2].name}<\/a>/
-		output =~ /<a href=""person\/create\?">Add Person<\/a>/
+		people.every {
+			output =~ /<a href="\/person\/show\/$it.id">$it.name<\/a>/
+		}
+
+		and:
+		output =~ /<a href=""\person\/create\?">Add Person<\/a>/
 	}
 
 }

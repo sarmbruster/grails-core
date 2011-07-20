@@ -165,13 +165,17 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 	private String renderOneToManyInput(Map model, Map attrs) {
 		def buffer = new StringBuilder()
 		buffer << '<ul>'
+		def referencedDomainClass = attrs.persistentProperty.referencedDomainClass
+		def controllerName = referencedDomainClass.propertyName
 		model.value.each {
 			buffer << '<li>'
-			def controllerName = attrs.persistentProperty.referencedDomainClass.propertyName
-			buffer << g.link(controller: controllerName, action: "show", id: it.id, it.encodeAsHTML())
+			buffer << g.link(controller: controllerName, action: "show", id: it.id, it.toString().encodeAsHTML())
 			buffer << '</li>'
 		}
 		buffer << '</ul>'
+		def referencedTypeLabel = message(code: "${referencedDomainClass.propertyName}.label", default: referencedDomainClass.shortName)
+		def addLabel = g.message(code: 'default.add.label', args: [referencedTypeLabel])
+		buffer << g.link(controller: controllerName, action: "create", params: ['${domainClass.propertyName}.id': ${domainInstance}?.id], addLabel)
 		buffer as String
 	}
 
