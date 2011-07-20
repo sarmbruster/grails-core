@@ -16,7 +16,7 @@ class FormFieldsTagLibSpec extends Specification {
 	@Shared def manyToOneProperty = new MockPersistentProperty(manyToOne: true, referencedPropertyType: Person, referencedDomainClass: personDomainClass)
 	@Shared def manyToManyProperty = new MockPersistentProperty(manyToMany: true, referencedPropertyType: Person, referencedDomainClass: personDomainClass)
 	@Shared def oneToManyProperty = new MockPersistentProperty(oneToMany: true, referencedPropertyType: Person, referencedDomainClass: personDomainClass)
-	List<Person> people
+	@Shared List<Person> people
 
 	def setup() {
 		Object.metaClass.encodeAsHTML = {-> delegate } // TODO: need to tear this down properly
@@ -133,7 +133,7 @@ class FormFieldsTagLibSpec extends Specification {
 	}
 
 	@Unroll({"input for a $type.name property with a value of '$value' has the correct option(s) selected"})
-	def "special select types"() {
+	def "special select values"() {
 		given:
 		def model = [type: type, property: "prop", constraints: [:], persistentProperty: basicProperty, value: value]
 
@@ -141,14 +141,14 @@ class FormFieldsTagLibSpec extends Specification {
 		tagLib.renderInput(model) =~ outputPattern
 
 		where:
-		type          | value                             | outputPattern
-		Date          | new Date(108, 9, 2)               | /option value="2008" selected="selected"/
-		Calendar      | new GregorianCalendar(108, 9, 2)  | /option value="2008" selected="selected"/
-		java.sql.Date | new java.sql.Date(108, 9, 2)      | /option value="2008" selected="selected"/
-		java.sql.Time | new java.sql.Time(108, 9, 2)      | /option value="2008" selected="selected"/
-		TimeZone      | TimeZone.forName("Europe/London") | /<option value="Europe\/London" selected="selected"/
-		Locale        | Locale.CANADA_FRENCH              | /<option value="fr_CA" selected="selected"/
-		Currency      | Currency.forName("JPY")           | /<option value="JPY" selected="selected"/
+		type          | value                                 | outputPattern
+		Date          | new Date(108, 9, 2)                   | /option value="2008" selected="selected"/
+		Calendar      | new GregorianCalendar(2008, 9, 2)     | /option value="2008" selected="selected"/
+		java.sql.Date | new java.sql.Date(108, 9, 2)          | /option value="2008" selected="selected"/
+		java.sql.Time | new java.sql.Time(13, 29, 1)          | /option value="13" selected="selected"/
+		TimeZone      | TimeZone.getTimeZone("Europe/London") | /<option value="Europe\/London" selected="selected"/
+		Locale        | Locale.CANADA_FRENCH                  | /<option value="fr_CA" selected="selected"/
+		Currency      | Currency.getInstance("USD")           | /<option value="USD" selected="selected"/
 	}
 
 	@Unroll({"select for ${required ? 'a required' : 'an optional'} $type.name property ${required ? 'does not have' : 'has'} a no-selection option"})
@@ -161,7 +161,6 @@ class FormFieldsTagLibSpec extends Specification {
 
 		then:
 		output.contains('<option value=""') ^ required
-		output.contains('default="none"') ^ required
 
 		where:
 		type          | required
@@ -173,6 +172,40 @@ class FormFieldsTagLibSpec extends Specification {
 		Calendar      | false
 		java.sql.Date | false
 		java.sql.Time | false
+	}
+
+	@Unroll({"select for a $type.name property has a precision of 'day'"})
+	def "date and time precision"() {
+		given:
+		def model = [type: type, property: "prop", constraints: [:], persistentProperty: basicProperty]
+
+		when:
+		def output = tagLib.renderInput(model)
+
+		then:
+		output.contains('select name="prop_year"')
+		output.contains('select name="prop_month"')
+		output.contains('select name="prop_day"')
+		!output.contains('select name="prop_hour"')
+		!output.contains('select name="prop_minute"')
+
+		where:
+		type << [Date, Calendar, java.sql.Date]
+	}
+
+	def "select for a java.sql.Time property has a precision of 'minute'"() {
+		given:
+		def model = [type: java.sql.Time, property: "prop", constraints: [:], persistentProperty: basicProperty]
+
+		when:
+		def output = tagLib.renderInput(model)
+
+		then:
+		output.contains('select name="prop_year"')
+		output.contains('select name="prop_month"')
+		output.contains('select name="prop_day"')
+		output.contains('select name="prop_hour"')
+		output.contains('select name="prop_minute"')
 	}
 
 	@Unroll({"select for ${required ? 'a required' : 'an optional'} $type.name property ${required ? 'does not have' : 'has'} a no-selection option"})
@@ -321,7 +354,7 @@ class FormFieldsTagLibSpec extends Specification {
 		def output = tagLib.renderInput(model)
 
 		then:
-		output =~ /option value="${people[1].id}" selected="selected">${people[1].name}/
+		output =~ /option value="${people[1].id}" selected="selected" >${people[1].name}/
 
 		where:
 		type   | persistentProperty | description    | value
@@ -362,9 +395,9 @@ class FormFieldsTagLibSpec extends Specification {
 		def output = tagLib.renderInput(model)
 
 		then:
-		people.every {
-			output =~ /<a href="person\/show\/$it.id">$it.name<\/a>/
-		}
+		output =~ /<a href="person\/show\/${people[0].id}">${people[0].name}<\/a>/
+		output =~ /<a href="person\/show\/${people[1].id}">${people[1].name}<\/a>/
+		output =~ /<a href="person\/show\/${people[2].id}">${people[2].name}<\/a>/
 		output =~ /<a href=""person\/create\?">Add Person<\/a>/
 	}
 
