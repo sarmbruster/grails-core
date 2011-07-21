@@ -8,6 +8,7 @@ import org.codehaus.groovy.grails.web.pages.discovery.GrailsConventionGroovyPage
 import org.springframework.beans.PropertyAccessorFactory
 import org.codehaus.groovy.grails.commons.*
 import org.codehaus.groovy.grails.plugins.beanfields.*
+import org.apache.commons.lang.StringUtils
 
 @Artefact("TagLibrary")
 class FormFieldsTagLib implements GrailsApplicationAware {
@@ -91,15 +92,9 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 			return renderDateTimeInput(model, attrs)
 		} else if (attrs.type in [byte[], Byte[]]) {
 			return g.field(model + [type: "file"])
-		} else if (attrs.type in TimeZone) {
+		} else if (attrs.type in [TimeZone, Currency, Locale]) {
 			if (!attrs.required) model.noSelection = ["": ""]
-			return g.timeZoneSelect(model)
-		} else if (attrs.type in Currency) {
-			if (!attrs.required) model.noSelection = ["": ""]
-			return g.currencySelect(model)
-		} else if (attrs.type in Locale) {
-			if (!attrs.required) model.noSelection = ["": ""]
-			return g.localeSelect(model)
+			return g."${StringUtils.uncapitalize(attrs.type.simpleName)}Select"(model)
 		} else {
 			return null
 		}
@@ -175,8 +170,7 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 		buffer << '</ul>'
 		def referencedTypeLabel = message(code: "${referencedDomainClass.propertyName}.label", default: referencedDomainClass.shortName)
 		def addLabel = g.message(code: 'default.add.label', args: [referencedTypeLabel])
-		println "id=$attrs.bean.id"
-		buffer << g.link(controller: controllerName, action: "create", params: ["${attrs.beanDomainClass.propertyName}.id": attrs.bean.id], addLabel)
+		buffer << g.link(controller: controllerName, action: "create", params: [("${attrs.beanDomainClass.propertyName}.id".toString()): attrs.bean.id], addLabel)
 		buffer as String
 	}
 
