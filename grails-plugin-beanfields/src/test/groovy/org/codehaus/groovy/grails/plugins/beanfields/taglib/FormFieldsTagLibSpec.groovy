@@ -147,7 +147,7 @@ class FormFieldsTagLibSpec extends Specification {
 		java.sql.Date | new java.sql.Date(108, 9, 2)          | /option value="2008" selected="selected"/
 		java.sql.Time | new java.sql.Time(13, 29, 1)          | /option value="13" selected="selected"/
 		TimeZone      | TimeZone.getTimeZone("Europe/London") | /<option value="Europe\/London" selected="selected"/
-		Locale        | Locale.CANADA_FRENCH                  | /<option value="fr_CA" selected="selected"/
+		Locale        | Locale.ITALIAN                        | /<option value="it" selected="selected"/
 		Currency      | Currency.getInstance("USD")           | /<option value="USD" selected="selected"/
 	}
 
