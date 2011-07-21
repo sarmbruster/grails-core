@@ -7,7 +7,7 @@ import org.codehaus.groovy.grails.commons.*
 import spock.lang.*
 
 @TestFor(FormFieldsTagLib)
-@Mock([Person, Thing])
+@Mock(Person)
 class FormFieldsTagLibSpec extends Specification {
 
 	@Shared def personDomainClass = new DefaultGrailsDomainClass(Person)
@@ -392,8 +392,7 @@ class FormFieldsTagLibSpec extends Specification {
 		messageSource.addMessage("default.add.label", request.locale, "Add {0}")
 
 		and:
-		def bean = new Thing().save(failOnError: true)
-		def model = [bean: bean, beanDomainClass: new DefaultGrailsDomainClass(Thing), type: Set, property: "prop", constraints: [:], persistentProperty: oneToManyProperty, value: people]
+		def model = [bean: [id: 1337], beanDomainClass: [propertyName: "thing"], type: Set, property: "prop", constraints: [:], persistentProperty: oneToManyProperty, value: people]
 
 		when:
 		def output = tagLib.renderInput(model)
@@ -404,13 +403,10 @@ class FormFieldsTagLibSpec extends Specification {
 		}
 
 		and:
-		output.contains("""<a href="/person/create?thing.id=$bean.id">Add Person</a>""")
+		output.contains("""<a href="/person/create?thing.id=1337">Add Person</a>""")
 	}
 
 }
-
-@Entity
-class Thing { }
 
 @Entity
 class Person {
