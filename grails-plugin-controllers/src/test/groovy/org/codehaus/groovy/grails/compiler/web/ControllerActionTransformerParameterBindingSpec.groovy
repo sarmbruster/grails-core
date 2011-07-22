@@ -7,14 +7,14 @@ import org.codehaus.groovy.grails.compiler.injection.GrailsAwareClassLoader
 import org.springframework.web.context.request.RequestContextHolder
 import spock.lang.Specification
 
-class MethodActionTransformerParameterBindingSpec extends Specification {
+class ControllerActionTransformerParameterBindingSpec extends Specification {
 
     static controllerClass
     def controller
 
     void setupSpec() {
         def gcl = new GrailsAwareClassLoader()
-        def transformer = new MethodActionTransformer() {
+        def transformer = new ControllerActionTransformer() {
                 @Override
                 boolean shouldInject(URL url) {
                     return true;
@@ -71,6 +71,44 @@ class MethodActionTransformerParameterBindingSpec extends Specification {
             def methodActionWithRequestMapping(@RequestParameter('firstName') String name, @RequestParameter('numberOfYearsOld') int age) {
                 [name: name, age: age]
             }
+            def closureAction(String stringParam,
+                             Short shortParam,
+                             short primitiveShortParam,
+                             Integer integerParam,
+                             int primitiveIntParam,
+                             Long longParam,
+                             long primitiveLongParam,
+                             Float floatParam,
+                             float primitiveFloatParam,
+                             Double doubleParam,
+                             double primitiveDoubleParam,
+                             Boolean booleanParam,
+                             boolean primitiveBooleanParam,
+                             Byte byteParam,
+                             byte primitiveByteParam,
+                             Character charParam,
+                             char primitiveCharParam) {
+                [ stringParam: stringParam,
+                  integerParam: integerParam,
+                  primitiveIntParam: primitiveIntParam,
+                  shortParam: shortParam,
+                  primitiveShortParam: primitiveShortParam,
+                  longParam: longParam,
+                  primitiveLongParam: primitiveLongParam,
+                  floatParam: floatParam,
+                  primitiveFloatParam: primitiveFloatParam,
+                  doubleParam: doubleParam,
+                  primitiveDoubleParam: primitiveDoubleParam,
+                  booleanParam: booleanParam,
+                  primitiveBooleanParam: primitiveBooleanParam,
+                  byteParam: byteParam,
+                  primitiveByteParam: primitiveByteParam,
+                  charParam: charParam,
+                  primitiveCharParam: primitiveCharParam ]
+            }
+            def closureActionWithRequestMapping(@RequestParameter('firstName') String name, @RequestParameter('numberOfYearsOld') int age) {
+                [name: name, age: age]
+            }
         }
         ''')
 
@@ -88,6 +126,17 @@ class MethodActionTransformerParameterBindingSpec extends Specification {
             def model = controller.methodActionWithRequestMapping()
 
         then:
+            !controller.hasErrors()
+            null == model.name
+            0 == model.age
+            
+        when:
+            controller.params.name = 'Herbert'
+            controller.params.age = '47'
+            model = controller.closureActionWithRequestMapping()
+
+        then:
+            !controller.hasErrors()
             null == model.name
             0 == model.age
     }
@@ -99,6 +148,15 @@ class MethodActionTransformerParameterBindingSpec extends Specification {
             def model = controller.methodActionWithRequestMapping(firstName, age)
 
         then:
+            !controller.hasErrors()
+            'Herbert' == model.name
+            47 == model.age
+
+        when:
+            model = controller.closureActionWithRequestMapping(firstName, age)
+
+        then:
+            !controller.hasErrors()
             'Herbert' == model.name
             47 == model.age
     }
@@ -110,8 +168,18 @@ class MethodActionTransformerParameterBindingSpec extends Specification {
             def model = controller.methodActionWithRequestMapping()
 
         then:
+            !controller.hasErrors()
             'Herbert' == model.name
             47 == model.age
+            
+        when:
+            model = controller.closureActionWithRequestMapping()
+
+        then:
+            !controller.hasErrors()
+            'Herbert' == model.name
+            47 == model.age
+
     }
 
     void "Test binding request parameters to basic types"() {
@@ -137,6 +205,7 @@ class MethodActionTransformerParameterBindingSpec extends Specification {
            def model = controller.methodAction()
 
         then:
+            !controller.hasErrors()
             'Herbert' == model.stringParam
             1001 == model.shortParam
             1002 == model.primitiveShortParam
@@ -154,6 +223,30 @@ class MethodActionTransformerParameterBindingSpec extends Specification {
             102 == model.primitiveByteParam
             'Y' == model.charParam
             'Z' == model.primitiveCharParam
+            
+        when:
+            model = controller.closureAction()
+ 
+         then:
+             !controller.hasErrors()
+             'Herbert' == model.stringParam
+             1001 == model.shortParam
+             1002 == model.primitiveShortParam
+             1003 == model.integerParam
+             1004 == model.primitiveIntParam
+             1005 == model.longParam
+             1006 == model.primitiveLongParam
+             1007.1007f == model.floatParam
+             1008.1008f == model.primitiveFloatParam
+             1009.1009 == model.doubleParam
+             1010.1010 == model.primitiveDoubleParam
+             model.booleanParam
+             model.primitiveBooleanParam
+             101 == model.byteParam
+             102 == model.primitiveByteParam
+             'Y' == model.charParam
+             'Z' == model.primitiveCharParam
+ 
     }
 
     void "Test conversion errors"() {
@@ -195,6 +288,69 @@ class MethodActionTransformerParameterBindingSpec extends Specification {
             0 == model.primitiveByteParam
             null == model.charParam
             0 == model.primitiveCharParam
+            controller.hasErrors()
+            14 == controller.errors.errorCount
+            controller.errors.getFieldError('shortParam')
+            controller.errors.getFieldError('primitiveShortParam')
+            controller.errors.getFieldError('integerParam')
+            controller.errors.getFieldError('primitiveIntParam')
+            controller.errors.getFieldError('longParam')
+            controller.errors.getFieldError('primitiveLongParam')
+            controller.errors.getFieldError('floatParam')
+            controller.errors.getFieldError('primitiveFloatParam')
+            controller.errors.getFieldError('doubleParam')
+            controller.errors.getFieldError('primitiveDoubleParam')
+            controller.errors.getFieldError('byteParam')
+            controller.errors.getFieldError('primitiveByteParam')
+            controller.errors.getFieldError('charParam')
+            controller.errors.getFieldError('primitiveCharParam')
+            
+            // boolean conversions should never fail
+            !controller.errors.getFieldError('booleanParam')
+            !controller.errors.getFieldError('primitiveBooleanParam')
+            
+        when:
+            model = controller.closureAction()
+ 
+         then:
+             null == model.stringParam
+             null == model.shortParam
+             0 == model.primitiveShortParam
+             null == model.integerParam
+             0 == model.primitiveIntParam
+             null == model.longParam
+             0 == model.primitiveLongParam
+             null == model.floatParam
+             0f == model.primitiveFloatParam
+             null == model.doubleParam
+             0 == model.primitiveDoubleParam
+             !model.booleanParam
+             !model.primitiveBooleanParam
+             null == model.byteParam
+             0 == model.primitiveByteParam
+             null == model.charParam
+             0 == model.primitiveCharParam
+             controller.hasErrors()
+             14 == controller.errors.errorCount
+             controller.errors.getFieldError('shortParam')
+             controller.errors.getFieldError('primitiveShortParam')
+             controller.errors.getFieldError('integerParam')
+             controller.errors.getFieldError('primitiveIntParam')
+             controller.errors.getFieldError('longParam')
+             controller.errors.getFieldError('primitiveLongParam')
+             controller.errors.getFieldError('floatParam')
+             controller.errors.getFieldError('primitiveFloatParam')
+             controller.errors.getFieldError('doubleParam')
+             controller.errors.getFieldError('primitiveDoubleParam')
+             controller.errors.getFieldError('byteParam')
+             controller.errors.getFieldError('primitiveByteParam')
+             controller.errors.getFieldError('charParam')
+             controller.errors.getFieldError('primitiveCharParam')
+             
+             // boolean conversions should never fail
+             !controller.errors.getFieldError('booleanParam')
+             !controller.errors.getFieldError('primitiveBooleanParam')
+ 
     }
 
     void "Test uninitialized action parameters"() {
@@ -202,6 +358,30 @@ class MethodActionTransformerParameterBindingSpec extends Specification {
            def model = controller.methodAction()
 
         then:
+            !controller.hasErrors()
+            null == model.stringParam
+            null == model.shortParam
+            0 == model.primitiveShortParam
+            null == model.integerParam
+            0 == model.primitiveIntParam
+            null == model.longParam
+            0 == model.primitiveLongParam
+            null == model.floatParam
+            0f == model.primitiveFloatParam
+            null == model.doubleParam
+            0 == model.primitiveDoubleParam
+            !model.booleanParam
+            !model.primitiveBooleanParam
+            null == model.byteParam
+            0 == model.primitiveByteParam
+            null == model.charParam
+            0 == model.primitiveCharParam
+            
+        when:
+            model = controller.closureAction()
+ 
+        then:
+            !controller.hasErrors()
             null == model.stringParam
             null == model.shortParam
             0 == model.primitiveShortParam
