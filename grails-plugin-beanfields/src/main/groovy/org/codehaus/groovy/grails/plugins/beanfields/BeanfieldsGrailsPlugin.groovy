@@ -21,7 +21,7 @@ import org.codehaus.groovy.grails.plugins.beanfields.taglib.FormFieldsTagLib
 class BeanfieldsGrailsPlugin {
 
     def version = GrailsUtil.getGrailsVersion()
-    def dependsOn = [core: version, i18n: version, gsp: version]
+    def dependsOn = [core: version, i18n: version, groovyPages: version]
     def nonEnhancedTagLibClasses = []
     def providedArtefacts = [FormFieldsTagLib]
 
