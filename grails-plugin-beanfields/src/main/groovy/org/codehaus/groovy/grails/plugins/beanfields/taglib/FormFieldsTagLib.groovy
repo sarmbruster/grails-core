@@ -26,17 +26,27 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 
 	Closure field = { attrs ->
 		def propertyAccessor = resolveProperty(attrs)
-		def template = resolveFieldTemplate(propertyAccessor)
 		def model = buildModel(propertyAccessor, attrs)
-		model.input = renderInput(model)
 
+		model.input = renderInput(propertyAccessor, model)
+
+		def template = resolveFieldTemplate(propertyAccessor, "field")
 		out << render(template: template, model: model)
 	}
 
 	Closure input = { attrs ->
 		def propertyAccessor = resolveProperty(attrs)
 		def model = buildModel(propertyAccessor, attrs)
-		out << renderInput(model)
+		out << renderInput(propertyAccessor, model)
+	}
+
+	private String renderInput(BeanPropertyAccessor propertyAccessor, LinkedHashMap<String, Object> model) {
+		def template = resolveFieldTemplate(propertyAccessor, "input")
+		if (template) {
+			return render(template: template, model: model)
+		} else {
+			return renderDefaultInput(model)
+		}
 	}
 
 	private Map buildModel(BeanPropertyAccessor propertyAccessor, attrs) {
@@ -65,7 +75,7 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 	}
 
 	// TODO: cache the result of this lookup
-	private String resolveFieldTemplate(BeanPropertyAccessor propertyAccessor) {
+	private String resolveFieldTemplate(BeanPropertyAccessor propertyAccessor, String templateName) {
 		// order of priority for template resolution
 		// 1: grails-app/views/controller/<property>/_field.gsp
 		// 2: grails-app/views/forms/<class>.<property>/_field.gsp
@@ -73,10 +83,10 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 		// 4: grails-app/views/forms/default/_field.gsp
 		// TODO: implications for templates supplied by plugins
 		def templateResolveOrder = []
-		templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/", controllerName, propertyAccessor.propertyName, "field")
-		templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/forms", propertyAccessor.beanClass.propertyName, propertyAccessor.propertyName, "field")
-		templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/forms", propertyAccessor.type.name, "field")
-		templateResolveOrder << "/forms/default/field"
+		templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/", controllerName, propertyAccessor.propertyName, templateName)
+		templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/forms", propertyAccessor.beanClass.propertyName, propertyAccessor.propertyName, templateName)
+		templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/forms", propertyAccessor.type.name, templateName)
+		templateResolveOrder << "/forms/default/$templateName"
 
 		def template = templateResolveOrder.find {
 			groovyPageLocator.findTemplateByPath(it)
@@ -110,7 +120,7 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 		label ?: message(code: propertyAccessor.labelKey, default: propertyAccessor.defaultLabel)
 	}
 
-	private String renderInput(Map attrs) {
+	private String renderDefaultInput(Map attrs) {
 		def model = [:]
 		model.name = attrs.property
 		model.value = attrs.value

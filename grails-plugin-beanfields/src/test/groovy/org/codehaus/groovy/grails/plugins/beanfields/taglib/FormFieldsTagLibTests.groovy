@@ -252,4 +252,31 @@ class FormFieldsTagLibTests extends AbstractGrailsTagTests {
 		assert applyTemplate('<form:field bean="personInstance" property="name"/>', [personInstance: personInstance]) == '<input type="text" name="name" value="Bart Simpson" required="" id="name" />'
 	}
 
+	void testRenderedInputIsOverriddenByTemplateForPropertyType() {
+		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", '${input}')
+
+        resourceLoader.registerMockResource("/grails-app/views/forms/java.lang.String/_input.gsp", 'PROPERTY TYPE TEMPLATE')
+
+        assert applyTemplate('<form:field bean="personInstance" property="name"/>', [personInstance: personInstance]) == 'PROPERTY TYPE TEMPLATE'
+	}
+
+	void testRenderedInputIsOverriddenByTemplateForDomainClassProperty() {
+		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", '${input}')
+
+        resourceLoader.registerMockResource("/grails-app/views/forms/java.lang.String/_input.gsp", 'PROPERTY TYPE TEMPLATE')
+        resourceLoader.registerMockResource("/grails-app/views/forms/person/name/_input.gsp", 'CLASS AND PROPERTY TEMPLATE')
+
+        assert applyTemplate('<form:field bean="personInstance" property="name"/>', [personInstance: personInstance]) == "CLASS AND PROPERTY TEMPLATE"
+	}
+
+	void testRenderedInputIsOverriddenByTemplateFromControllerViewsDirectory() {
+		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", '${input}')
+
+        resourceLoader.registerMockResource("/grails-app/views/forms/java.lang.String/_input.gsp", 'PROPERTY TYPE TEMPLATE')
+        resourceLoader.registerMockResource("/grails-app/views/forms/person/name/_input.gsp", 'CLASS AND PROPERTY TEMPLATE')
+        resourceLoader.registerMockResource("/grails-app/views/person/name/_input.gsp", 'CONTROLLER FIELD TEMPLATE')
+
+        assert applyTemplate('<form:field bean="personInstance" property="name"/>', [personInstance: personInstance]) == 'CONTROLLER FIELD TEMPLATE'
+	}
+
 }
