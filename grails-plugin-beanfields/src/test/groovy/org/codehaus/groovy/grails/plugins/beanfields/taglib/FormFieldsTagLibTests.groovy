@@ -283,9 +283,20 @@ class FormFieldsTagLibTests extends AbstractGrailsTagTests {
 		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", '${property} ')
 
 		def output = applyTemplate('<form:bean bean="personInstance"/>', [personInstance: personInstance])
-		assert ["name", "password", "gender", "dateOfBirth", "minor"].every {
-			output =~ /\b$it\b/
-		}
+		output =~ /\bname\b/
+		output =~ /\bpassword\b/
+		output =~ /\bgender\b/
+		output =~ /\bdateOfBirth\b/
+		output =~ /\bminor\b/
+	}
+
+	void testBeanTagRendersIndividualFieldsForEmbeddedProperties() {
+		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", '${property} ')
+
+		def output = applyTemplate('<form:bean bean="personInstance"/>', [personInstance: personInstance])
+		output =~ /\baddress\.street\b/
+		output =~ /\baddress\.city\b/
+		output =~ /\baddress\.country\b/
 	}
 
 }

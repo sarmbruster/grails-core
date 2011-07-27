@@ -33,7 +33,13 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 		def domainClass = resolveDomainClass(bean)
 
 		for (property in resolvePersistentProperties(domainClass)) {
-			out << field(bean: bean, property: property)
+			if (property.embedded) {
+				for (embeddedProp in resolvePersistentProperties(property.component)) {
+					out << field(bean: bean, property: property.name)
+				}
+			} else {
+				out << field(bean: bean, property: property.name)
+			}
 		}
 	}
 
@@ -122,12 +128,12 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 		grailsApplication.getArtefact("Domain", beanClass.simpleName)
 	}
 
-	private List<String> resolvePersistentProperties(GrailsDomainClass domainClass) {
+	private List<GrailsDomainClassProperty> resolvePersistentProperties(GrailsDomainClass domainClass) {
 		boolean hasHibernate = pluginManager?.hasGrailsPlugin('hibernate')
 		def properties = domainClass.persistentProperties as List
 		def comparator = hasHibernate ? new DomainClassPropertyComparator(domainClass) : new SimpleDomainClassPropertyComparator(domainClass)
 		Collections.sort(properties, comparator)
-		properties.name
+		properties
 	}
 
 	private Map<String, Object> resolveProperty(bean, String property) {
