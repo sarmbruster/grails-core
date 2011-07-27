@@ -2,13 +2,15 @@ package org.codehaus.groovy.grails.plugins.beanfields.taglib
 
 import grails.artefact.Artefact
 import javax.annotation.PostConstruct
+import org.apache.commons.lang.StringUtils
 import org.codehaus.groovy.grails.io.support.GrailsResourceUtils
+import org.codehaus.groovy.grails.plugins.GrailsPluginManager
 import org.codehaus.groovy.grails.plugins.support.aware.GrailsApplicationAware
 import org.codehaus.groovy.grails.web.pages.discovery.GrailsConventionGroovyPageLocator
 import org.springframework.beans.PropertyAccessorFactory
 import org.codehaus.groovy.grails.commons.*
 import org.codehaus.groovy.grails.plugins.beanfields.*
-import org.apache.commons.lang.StringUtils
+import org.codehaus.groovy.grails.scaffolding.*
 
 @Artefact("TagLibrary")
 class FormFieldsTagLib implements GrailsApplicationAware {
@@ -18,13 +20,27 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 	GrailsApplication grailsApplication
 	GrailsConventionGroovyPageLocator groovyPageLocator
 	BeanPropertyAccessorFactory beanPropertyAccessorFactory
+	GrailsPluginManager pluginManager
 
 	@PostConstruct
 	void initialize() {
 		beanPropertyAccessorFactory = new BeanPropertyAccessorFactory(grailsApplication: grailsApplication)
 	}
 
+	Closure bean = { attrs ->
+		if (!attrs.bean) throwTagError("Tag [bean] is missing required attribute [bean]")
+		def bean = resolveBean(attrs)
+		def domainClass = resolveDomainClass(bean)
+
+		for (property in resolvePersistentProperties(domainClass)) {
+			out << field(bean: bean, property: property)
+		}
+	}
+
 	Closure field = { attrs ->
+		if (!attrs.bean) throwTagError("Tag [field] is missing required attribute [bean]")
+		if (!attrs.property) throwTagError("Tag [field] is missing required attribute [property]")
+
 		def propertyAccessor = resolveProperty(attrs)
 		def model = buildModel(propertyAccessor, attrs)
 
@@ -35,18 +51,19 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 	}
 
 	Closure input = { attrs ->
+		if (!attrs.bean) throwTagError("Tag [input] is missing required attribute [bean]")
+		if (!attrs.property) throwTagError("Tag [input] is missing required attribute [property]")
+
 		def propertyAccessor = resolveProperty(attrs)
 		def model = buildModel(propertyAccessor, attrs)
 		out << renderInput(propertyAccessor, model)
 	}
 
-	private String renderInput(BeanPropertyAccessor propertyAccessor, LinkedHashMap<String, Object> model) {
-		def template = resolveFieldTemplate(propertyAccessor, "input")
-		if (template) {
-			return render(template: template, model: model)
-		} else {
-			return renderDefaultInput(model)
-		}
+	private BeanPropertyAccessor resolveProperty(attrs) {
+		def bean = resolveBean(attrs)
+		def propertyPath = attrs.property
+		def propertyAccessor = beanPropertyAccessorFactory.accessorFor(bean, propertyPath)
+		return propertyAccessor
 	}
 
 	private Map buildModel(BeanPropertyAccessor propertyAccessor, attrs) {
@@ -64,14 +81,13 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 		]
 	}
 
-	private BeanPropertyAccessor resolveProperty(attrs) {
-		if (!attrs.bean) throwTagError("Tag [field] is missing required attribute [bean]")
-		if (!attrs.property) throwTagError("Tag [field] is missing required attribute [property]")
-
-		def bean = resolveBean(attrs)
-		def propertyPath = attrs.property
-		def propertyAccessor = beanPropertyAccessorFactory.accessorFor(bean, propertyPath)
-		return propertyAccessor
+	private String renderInput(BeanPropertyAccessor propertyAccessor, LinkedHashMap<String, Object> model) {
+		def template = resolveFieldTemplate(propertyAccessor, "input")
+		if (template) {
+			return render(template: template, model: model)
+		} else {
+			return renderDefaultInput(model)
+		}
 	}
 
 	// TODO: cache the result of this lookup
@@ -104,6 +120,14 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 
 	private GrailsDomainClass resolveDomainClass(Class beanClass) {
 		grailsApplication.getArtefact("Domain", beanClass.simpleName)
+	}
+
+	private List<String> resolvePersistentProperties(GrailsDomainClass domainClass) {
+		boolean hasHibernate = pluginManager?.hasGrailsPlugin('hibernate')
+		def properties = domainClass.persistentProperties as List
+		def comparator = hasHibernate ? new DomainClassPropertyComparator(domainClass) : new SimpleDomainClassPropertyComparator(domainClass)
+		Collections.sort(properties, comparator)
+		properties.name
 	}
 
 	private Map<String, Object> resolveProperty(bean, String property) {
