@@ -1,4 +1,3 @@
 @artifact.package@class @artifact.name@ {
-
-    def index() { }
+    static scaffold = true
 }
