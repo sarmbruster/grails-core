@@ -28,10 +28,10 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import org.springframework.util.StringUtils;
 
 /**
- * Utility class to watch directories for changes
+ * Utility class to watch directories for changes.
  *
  * @author Graeme Rocher
- * @since 1.4
+ * @since 2.0
  */
 public class DirectoryWatcher extends Thread {
 
@@ -103,7 +103,7 @@ public class DirectoryWatcher extends Thread {
      */
     public void addWatchDirectory(File dir, String extension) {
         List<String> fileExtensions = new ArrayList<String>();
-        if (extension == null) {
+        if (!StringUtils.hasText(extension)) {
             fileExtensions.add("*");
         }
         else {
