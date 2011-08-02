@@ -21,10 +21,14 @@ class FormFieldsTagLibTests extends AbstractGrailsTagTests {
 				Date dateOfBirth
                 Address address
 				boolean minor
+				Date lastUpdated
                 static embedded = ['address']
 				static constraints = {
 					name blank: false
 					address nullable: true
+				}
+				def onLoad = {
+					println "loaded"
 				}
 			}
             class Address {
@@ -297,6 +301,20 @@ class FormFieldsTagLibTests extends AbstractGrailsTagTests {
 		output =~ /\baddress\.street\b/
 		output =~ /\baddress\.city\b/
 		output =~ /\baddress\.country\b/
+	}
+
+	void testBeanTagSkipsEventProperties() {
+		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", '${property} ')
+
+		def output = applyTemplate('<form:bean bean="personInstance"/>', [personInstance: personInstance])
+		!output.contains("onLoad")
+	}
+
+	void testBeanTagSkipsTimestampProperties() {
+		resourceLoader.registerMockResource("/grails-app/views/forms/default/_field.gsp", '${property} ')
+
+		def output = applyTemplate('<form:bean bean="personInstance"/>', [personInstance: personInstance])
+		!output.contains("lastUpdated")
 	}
 
 }
