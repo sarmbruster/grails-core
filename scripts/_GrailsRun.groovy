@@ -19,8 +19,11 @@ import grails.util.Metadata
 import grails.web.container.EmbeddableServer
 import grails.web.container.EmbeddableServerFactory
 
+import java.awt.event.ActionEvent
+import java.awt.event.ActionListener
 import java.net.ServerSocket
 
+import org.codehaus.groovy.grails.cli.ScriptExitException
 import org.codehaus.groovy.grails.cli.interactive.InteractiveMode
 import org.codehaus.groovy.grails.compiler.GrailsProjectWatcher
 
@@ -173,9 +176,19 @@ runServer = { Map args ->
             }
         }
         event("StatusFinal", [message])
+
+		boolean isWindows = System.getProperty("os.name").toLowerCase().indexOf("windows") != -1
+		if (isWindows) {
+			grailsConsole.reader.addTriggeredAction((char)3, new ActionListener() {
+				void actionPerformed(ActionEvent e) {
+					stopServer()
+					exit(0)
+				}
+			})
+		}
     }
     catch (Throwable t) {
-        if(t instanceof org.codehaus.groovy.grails.cli.ScriptExitException) throw t
+        if (t instanceof ScriptExitException) throw t
         GrailsUtil.deepSanitize(t)
         if (!(t instanceof SocketException) && !(t.cause instanceof SocketException)) {
             grailsConsole.error t
@@ -219,6 +232,11 @@ target(watchContext: "Watches the WEB-INF/classes directory for changes and rest
 target(keepServerAlive: "Idles the script, ensuring that the server stays running.") {
     def keepRunning = true
     def killFile = new File("${basedir}/.kill-run-app")
+    if (killFile.exists()) {
+        grailsConsole.warning ".kill-run-app file exists - perhaps a previous server stop didn't work?. Deleting and continuing anyway."
+        killFile.delete()
+    }
+
     while (keepRunning) {
         sleep(recompileFrequency * 1000)
 

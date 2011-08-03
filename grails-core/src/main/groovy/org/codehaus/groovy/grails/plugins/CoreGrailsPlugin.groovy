@@ -92,19 +92,19 @@ class CoreGrailsPlugin {
         }
 
         // add shutdown hook if not running in war deployed mode
-        final devMode = !Metadata.getCurrent().isWarDeployed() && Environment.currentEnvironment == Environment.DEVELOPMENT
+        final warDeployed = Environment.isWarDeployed()
+        final devMode = !warDeployed && Environment.currentEnvironment == Environment.DEVELOPMENT
         if (devMode) {
             shutdownHook(DevelopmentShutdownHook)
         }
         abstractGrailsResourceLocator {
-            if(devMode) {
+            if (warDeployed) {
                 BuildSettings settings = BuildSettingsHolder.settings
-                if(settings) {
+                if (settings) {
                     def locations = new ArrayList(settings.pluginDirectories.collect { it.absolutePath })
                     locations << settings.baseDir.absolutePath
                     searchLocations = locations
                 }
-
             }
         }
         grailsResourceLocator(DefaultResourceLocator) { bean ->
