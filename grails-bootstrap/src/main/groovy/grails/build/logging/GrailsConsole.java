@@ -16,25 +16,10 @@
 
 package grails.build.logging;
 
-import static org.fusesource.jansi.Ansi.ansi;
-import static org.fusesource.jansi.Ansi.Color.DEFAULT;
-import static org.fusesource.jansi.Ansi.Color.RED;
-import static org.fusesource.jansi.Ansi.Color.YELLOW;
-import static org.fusesource.jansi.Ansi.Erase.FORWARD;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.PrintStream;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.lang.reflect.Field;
-import java.util.Stack;
-
 import jline.ConsoleReader;
 import jline.Terminal;
 import jline.UnsupportedTerminal;
 import jline.WindowsTerminal;
-
 import org.apache.tools.ant.BuildException;
 import org.codehaus.groovy.grails.cli.ScriptExitException;
 import org.codehaus.groovy.grails.cli.interactive.CandidateListCompletionHandler;
@@ -47,6 +32,14 @@ import org.fusesource.jansi.Ansi;
 import org.fusesource.jansi.Ansi.Color;
 import org.fusesource.jansi.AnsiConsole;
 import org.springframework.util.StringUtils;
+
+import java.io.*;
+import java.lang.reflect.Field;
+import java.util.Stack;
+
+import static org.fusesource.jansi.Ansi.Color.*;
+import static org.fusesource.jansi.Ansi.Erase.FORWARD;
+import static org.fusesource.jansi.Ansi.ansi;
 
 /**
  * Utility class for delivering console output in a nicely formatted way.
@@ -345,14 +338,14 @@ public class GrailsConsole {
         try {
             if (isAnsiEnabled()) {
 
-                lastStatus = outputCategory(erasePreviousLine(CATEGORY_SEPARATOR), CATEGORY_SEPARATOR)
+
+                out.print(erasePreviousLine(CATEGORY_SEPARATOR));
+                lastStatus = outputCategory(ansi(), CATEGORY_SEPARATOR)
                         .fg(Color.DEFAULT).a(msg).reset();
                 out.println(lastStatus);
-                if (userInputActive) {
-                    out.print(ansi().cursorRight(PROMPT.length()).reset());
+                if (!userInputActive) {
+                    cursorMove = replaceCount;
                 }
-
-                cursorMove = replaceCount;
             } else {
                 if (lastMessage != null && lastMessage.equals(msg)) return;
 
@@ -369,8 +362,17 @@ public class GrailsConsole {
         }
     }
 
+    private Ansi moveDownToSkipPrompt() {
+           return ansi()
+                   .cursorDown(1)
+                   .cursorLeft(PROMPT.length());
+    }
+
     private void postPrintMessage() {
         progressIndicatorActive = false;
+        if(userInputActive) {
+            showPrompt();
+        }
     }
 
     /**
@@ -539,7 +541,7 @@ public class GrailsConsole {
         lastMessage = "";
         msg = isAnsiEnabled() ? outputCategory(ansi(), ">").fg(DEFAULT).a(msg).toString() : msg;
         try {
-            return showPrompt(msg);
+            return readLine(msg);
         } finally {
             cursorMove = 0;
         }
@@ -551,18 +553,27 @@ public class GrailsConsole {
      * @return The user input prompt
      */
     private String showPrompt(String prompt) {
-        try {
             cursorMove = 0;
-            userInputActive = true;
-            try {
-                return reader.readLine(prompt);
-            } finally {
-                userInputActive = false;
+            if(!userInputActive) {
+                return readLine(prompt);
             }
+            else {
+                out.print(prompt);
+                return null;
+            }
+    }
+
+    private String readLine(String prompt) {
+        userInputActive = true;
+        try {
+            return reader.readLine(prompt);
         } catch (IOException e) {
             throw new RuntimeException("Error reading input: " + e.getMessage());
+        }finally {
+            userInputActive = false;
         }
     }
+
     /**
      * Shows the prompt to request user input
      * @return The user input prompt
@@ -638,6 +649,8 @@ public class GrailsConsole {
     }
 
     private Ansi erasePreviousLine(String categoryName) {
+        int cursorMove = this.cursorMove;
+        if(userInputActive) cursorMove++;
         if (cursorMove > 0) {
             int moveLeftLength = categoryName.length() + lastMessage.length();
             if (userInputActive) {
@@ -657,7 +670,8 @@ public class GrailsConsole {
             cursorMove = 0;
             try {
                 if (isAnsiEnabled()) {
-                    Ansi ansi = outputErrorLabel(ansi(), label).a(message);
+                    Ansi ansi = outputErrorLabel(userInputActive ? moveDownToSkipPrompt()  : ansi(), label).a(message);
+
                     if (message.endsWith(LINE_SEPARATOR)) {
                         out.print(ansi);
                     }
