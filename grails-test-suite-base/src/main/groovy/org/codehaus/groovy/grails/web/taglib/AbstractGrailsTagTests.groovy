@@ -321,7 +321,7 @@ abstract class AbstractGrailsTagTests extends GroovyTestCase {
 
         assert engine
         def t = engine.createTemplate(template, "test_"+ System.currentTimeMillis())
-		t.allowSettingContentType = true
+        t.allowSettingContentType = true
 
         /*
         println "------------HTMLPARTS----------------------"
