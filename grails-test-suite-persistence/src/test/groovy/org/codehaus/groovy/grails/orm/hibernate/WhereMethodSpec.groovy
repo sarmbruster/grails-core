@@ -12,6 +12,76 @@ class WhereMethodSpec extends GormSpec{
         [Person, Pet]
     }
 
+   def "Test collection operations"() {
+       given:"People with pets"
+            createPeopleWithPets()
+
+       when:"We query for people with 2 pets"
+            def query = Person.where {
+                pets.size() == 2
+            }
+            def results = query.list(sort:"firstName")
+
+       then:"The correct results are returned"
+            results.size() == 2
+            results[0].firstName == "Fred"
+            results[1].firstName == "Joe"
+
+       when:"We query for people with greater than 2 pets"
+            query = Person.where {
+                pets.size() > 2
+            }
+            results = query.list(sort:"firstName")
+       then:"The correct results are returned"
+            results.size() == 1
+            results[0].firstName == "Ed"
+
+     when:"We query for people with greater than 2 pets"
+            query = Person.where {
+                pets.size() > 1 && firstName != "Joe"
+            }
+            results = query.list(sort:"firstName")
+       then:"The correct results are returned"
+            results.size() == 2
+            results[0].firstName == "Ed"
+            results[1].firstName == "Fred"
+   }
+
+   def "Test subquery usage combined with logical query"() {
+       given:"a bunch of people"
+         createPeople()
+
+       when:"We query for people greater than an average age"
+           final query = Person.where {
+               age > avg(age) && firstName != "Marge"
+           }
+           def results = query.list(sort:"firstName")
+
+       then:"The correct results are returned"
+            results.size() == 3
+            results[0].firstName == "Barney"
+            results[1].firstName == "Fred"
+            results[2].firstName == "Homer"
+   }
+
+   def "Test subquery usage"() {
+       given:"a bunch of people"
+         createPeople()
+
+       when:"We query for people greater than an average age"
+           final query = Person.where {
+               age > avg(age)
+           }
+           def results = query.list(sort:"firstName")
+
+       then:"The correct results are returned"
+            results.size() == 4
+            results[0].firstName == "Barney"
+            results[1].firstName == "Fred"
+            results[2].firstName == "Homer"
+            results[3].firstName == "Marge"
+   }
+
    String nameBart() { "Bart" }
    def "Test where method with value obtained via method call"() {
        given:"A bunch of people"
@@ -91,18 +161,17 @@ class WhereMethodSpec extends GormSpec{
             results[0].firstName == "Fred"
             results[1].firstName == "Joe"
 
-       // TODO: This is failing with Hibernate due to a bug in the way conjunction/disjunction is applied. Fix me!
-//       when:"We use a logical or to query pets combined with another top-level logical expression"
-//           def query = Person.where {
-//               pets { name == "Jack" } || firstName == "Ed"
-//           }
-//           def count = query.count()
-//           def results = query.list(sort:"firstName")
-//
-//        then:"The correct results are returned"
-//            count == 2
-//            results[0].firstName == "Ed"
-//            results[1].firstName == "Joe"
+
+       when:"We use a logical or to query pets combined with another top-level logical expression"
+           query = Person.where {
+               pets { name == "Jack" } || firstName == "Ed"
+           }
+           count = query.count()
+           results = query.list(sort:"firstName")
+
+        then:"The correct results are returned"
+            results[0].firstName == "Ed"
+            results[1].firstName == "Joe"
    }
 
    def "Test findAll method for inline query"() {
@@ -473,7 +542,7 @@ class WhereMethodSpec extends GormSpec{
     protected def createPeopleWithPets() {
         new Person(firstName: "Joe", lastName: "Bloggs").addToPets(name: "Jack").addToPets(name: "Butch").save()
 
-        new Person(firstName: "Ed", lastName: "Floggs").addToPets(name: "Mini").addToPets(name: "Barbie").save()
+        new Person(firstName: "Ed", lastName: "Floggs").addToPets(name: "Mini").addToPets(name: "Barbie").addToPets(name:"Ken").save()
 
         new Person(firstName: "Fred", lastName: "Cloggs").addToPets(name: "Jim").addToPets(name: "Joe").save()
     }

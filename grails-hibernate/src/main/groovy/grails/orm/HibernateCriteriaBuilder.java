@@ -15,6 +15,7 @@
  */
 package grails.orm;
 
+import grails.gorm.DetachedCriteria;
 import groovy.lang.Closure;
 import groovy.lang.GroovyObjectSupport;
 import groovy.lang.GroovySystem;
@@ -32,26 +33,20 @@ import java.util.Map;
 
 import org.codehaus.groovy.grails.commons.GrailsApplication;
 import org.codehaus.groovy.grails.commons.GrailsClassUtils;
+import org.codehaus.groovy.grails.orm.hibernate.HibernateSession;
 import org.codehaus.groovy.grails.orm.hibernate.cfg.GrailsHibernateUtil;
+import org.codehaus.groovy.grails.orm.hibernate.query.HibernateCriterionAdapter;
+import org.codehaus.groovy.grails.orm.hibernate.query.HibernateProjectionAdapter;
+import org.codehaus.groovy.grails.orm.hibernate.query.HibernateQuery;
+import org.grails.datastore.mapping.query.Query;
+import org.grails.datastore.mapping.query.api.QueryableCriteria;
 import org.hibernate.Criteria;
 import org.hibernate.EntityMode;
 import org.hibernate.FetchMode;
 import org.hibernate.LockMode;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
-import org.hibernate.criterion.AggregateProjection;
-import org.hibernate.criterion.CountProjection;
-import org.hibernate.criterion.CriteriaSpecification;
-import org.hibernate.criterion.Criterion;
-import org.hibernate.criterion.IdentifierProjection;
-import org.hibernate.criterion.Junction;
-import org.hibernate.criterion.Order;
-import org.hibernate.criterion.Projection;
-import org.hibernate.criterion.ProjectionList;
-import org.hibernate.criterion.Projections;
-import org.hibernate.criterion.PropertyProjection;
-import org.hibernate.criterion.Restrictions;
-import org.hibernate.criterion.SimpleExpression;
+import org.hibernate.criterion.*;
 import org.hibernate.engine.SessionFactoryImplementor;
 import org.hibernate.metadata.ClassMetadata;
 import org.hibernate.transform.ResultTransformer;
@@ -378,7 +373,41 @@ public class HibernateCriteriaBuilder extends GroovyObjectSupport implements org
         if (propertyValue instanceof CharSequence) {
             return propertyValue.toString();
         }
+        if(propertyValue instanceof QueryableCriteria) {
+            QueryableCriteria queryableCriteria = (QueryableCriteria) propertyValue;
+            propertyValue = getHibernateDetachedCriteria(queryableCriteria);
+        }
+        else if(propertyValue instanceof Closure) {
+            QueryableCriteria queryableCriteria = (QueryableCriteria) new DetachedCriteria(targetClass).build((Closure) propertyValue);
+            propertyValue = getHibernateDetachedCriteria(queryableCriteria);
+        }
         return propertyValue;
+    }
+
+    public static org.hibernate.criterion.DetachedCriteria getHibernateDetachedCriteria(QueryableCriteria queryableCriteria) {
+        org.hibernate.criterion.DetachedCriteria detachedCriteria = org.hibernate.criterion.DetachedCriteria.forClass(queryableCriteria.getPersistentEntity().getJavaClass());
+        populateHibernateDetachedCriteria(detachedCriteria, queryableCriteria);
+        return detachedCriteria;
+    }
+
+    private static void populateHibernateDetachedCriteria(org.hibernate.criterion.DetachedCriteria detachedCriteria, QueryableCriteria queryableCriteria) {
+        List<Query.Criterion> criteriaList = queryableCriteria.getCriteria();
+        for (Query.Criterion criterion : criteriaList) {
+            Criterion hibernateCriterion = new HibernateCriterionAdapter(criterion).toHibernateCriterion(null);
+            if(hibernateCriterion != null) {
+                detachedCriteria.add(hibernateCriterion);
+            }
+        }
+
+        List<Query.Projection> projections = queryableCriteria.getProjections();
+        ProjectionList projectionList = Projections.projectionList();
+        for (Query.Projection projection : projections) {
+            Projection hibernateProjection = new HibernateProjectionAdapter(projection).toHibernateProjection();
+            if(hibernateProjection != null) {
+                 projectionList.add(hibernateProjection);
+            }
+        }
+        detachedCriteria.setProjection(projectionList);
     }
 
     /**
@@ -669,6 +698,146 @@ public class HibernateCriteriaBuilder extends GroovyObjectSupport implements org
     }
 
     /**
+      * Creates a subquery criterion that ensures the given property is equal to all the given returned values
+      *
+      * @param propertyName  The property name
+      * @param propertyValue The property value
+      * @return A Criterion instance
+      */
+     public org.grails.datastore.mapping.query.api.Criteria eqAll(String propertyName, Closure propertyValue) {
+        return eqAll(propertyName, (QueryableCriteria) new DetachedCriteria(targetClass).build(propertyValue));
+     }
+
+     /**
+      * Creates a subquery criterion that ensures the given property is greater than all the given returned values
+      *
+      * @param propertyName  The property name
+      * @param propertyValue The property value
+      * @return A Criterion instance
+      */
+     public org.grails.datastore.mapping.query.api.Criteria gtAll(String propertyName, Closure propertyValue) {
+        return gtAll(propertyName, (QueryableCriteria) new DetachedCriteria(targetClass).build(propertyValue));
+     }
+
+     /**
+      * Creates a subquery criterion that ensures the given property is less than all the given returned values
+      *
+      * @param propertyName  The property name
+      * @param propertyValue The property value
+      * @return A Criterion instance
+      */
+     public org.grails.datastore.mapping.query.api.Criteria ltAll(String propertyName, Closure propertyValue) {
+        return ltAll(propertyName, (QueryableCriteria) new DetachedCriteria(targetClass).build(propertyValue));
+     }
+
+     /**
+      * Creates a subquery criterion that ensures the given property is greater than all the given returned values
+      *
+      * @param propertyName  The property name
+      * @param propertyValue The property value
+      * @return A Criterion instance
+      */
+     public org.grails.datastore.mapping.query.api.Criteria geAll(String propertyName, Closure propertyValue) {
+        return geAll(propertyName, (QueryableCriteria) new DetachedCriteria(targetClass).build(propertyValue));
+     }
+
+     /**
+      * Creates a subquery criterion that ensures the given property is less than all the given returned values
+      *
+      * @param propertyName  The property name
+      * @param propertyValue The property value
+      * @return A Criterion instance
+      */
+     public org.grails.datastore.mapping.query.api.Criteria leAll(String propertyName, Closure propertyValue) {
+        return leAll(propertyName, (QueryableCriteria) new DetachedCriteria(targetClass).build(propertyValue));
+     }
+
+
+    /**
+     * Creates a subquery criterion that ensures the given property is equal to all the given returned values
+     *
+     * @param propertyName  The property name
+     * @param propertyValue The property value
+     * @return A Criterion instance
+     */
+    public org.grails.datastore.mapping.query.api.Criteria eqAll(String propertyName, QueryableCriteria propertyValue) {
+        addToCriteria(  Property.forName(propertyName)
+                        .eqAll(
+                                getHibernateDetachedCriteria(propertyValue)
+                        )
+                     );
+        return this;
+    }
+
+    /**
+     * Creates a subquery criterion that ensures the given property is greater than all the given returned values
+     *
+     * @param propertyName  The property name
+     * @param propertyValue The property value
+     * @return A Criterion instance
+     */
+    public org.grails.datastore.mapping.query.api.Criteria gtAll(String propertyName, QueryableCriteria propertyValue) {
+        addToCriteria(  Property.forName(propertyName)
+                        .gtAll(
+                                getHibernateDetachedCriteria(propertyValue)
+                        )
+                     );
+        return this;
+
+    }
+
+    /**
+     * Creates a subquery criterion that ensures the given property is less than all the given returned values
+     *
+     * @param propertyName  The property name
+     * @param propertyValue The property value
+     * @return A Criterion instance
+     */
+    public org.grails.datastore.mapping.query.api.Criteria ltAll(String propertyName, QueryableCriteria propertyValue) {
+        addToCriteria(  Property.forName(propertyName)
+                        .ltAll(
+                                getHibernateDetachedCriteria(propertyValue)
+                        )
+                     );
+        return this;
+
+    }
+
+    /**
+     * Creates a subquery criterion that ensures the given property is greater than all the given returned values
+     *
+     * @param propertyName  The property name
+     * @param propertyValue The property value
+     * @return A Criterion instance
+     */
+    public org.grails.datastore.mapping.query.api.Criteria geAll(String propertyName, QueryableCriteria propertyValue) {
+        addToCriteria(  Property.forName(propertyName)
+                        .geAll(
+                                getHibernateDetachedCriteria(propertyValue)
+                        )
+                     );
+        return this;
+
+    }
+
+    /**
+     * Creates a subquery criterion that ensures the given property is less than all the given returned values
+     *
+     * @param propertyName  The property name
+     * @param propertyValue The property value
+     * @return A Criterion instance
+     */
+    public org.grails.datastore.mapping.query.api.Criteria leAll(String propertyName, QueryableCriteria propertyValue) {
+        addToCriteria(  Property.forName(propertyName)
+                        .leAll(
+                                getHibernateDetachedCriteria(propertyValue)
+                        )
+                     );
+        return this;
+
+    }
+
+    /**
      * Creates a "greater than" Criterion based on the specified property name and value
      * @param propertyName The property name
      * @param propertyValue The property value
@@ -682,7 +851,17 @@ public class HibernateCriteriaBuilder extends GroovyObjectSupport implements org
 
         propertyName = calculatePropertyName(propertyName);
         propertyValue = calculatePropertyValue(propertyValue);
-        addToCriteria(Restrictions.gt(propertyName, propertyValue));
+
+
+        Criterion gt;
+        if(propertyValue instanceof org.hibernate.criterion.DetachedCriteria) {
+            gt = Property.forName(propertyName).gt((org.hibernate.criterion.DetachedCriteria)propertyValue);
+        }
+        else {
+
+            gt = Restrictions.gt(propertyName, propertyValue);
+        }
+        addToCriteria(gt);
         return this;
     }
 
@@ -703,7 +882,16 @@ public class HibernateCriteriaBuilder extends GroovyObjectSupport implements org
         }
         propertyName = calculatePropertyName(propertyName);
         propertyValue = calculatePropertyValue(propertyValue);
-        addToCriteria(Restrictions.ge(propertyName, propertyValue));
+
+        Criterion ge;
+        if(propertyValue instanceof org.hibernate.criterion.DetachedCriteria) {
+            ge = Property.forName(propertyName).ge((org.hibernate.criterion.DetachedCriteria) propertyValue);
+        }
+        else {
+
+            ge = Restrictions.ge(propertyName, propertyValue);
+        }
+        addToCriteria(ge);
         return this;
     }
 
@@ -721,7 +909,15 @@ public class HibernateCriteriaBuilder extends GroovyObjectSupport implements org
 
         propertyName = calculatePropertyName(propertyName);
         propertyValue = calculatePropertyValue(propertyValue);
-        addToCriteria(Restrictions.lt(propertyName, propertyValue));
+        Criterion lt;
+        if(propertyValue instanceof org.hibernate.criterion.DetachedCriteria) {
+            lt = Property.forName(propertyName).lt((org.hibernate.criterion.DetachedCriteria) propertyValue);
+        }
+        else {
+
+            lt = Restrictions.lt(propertyName, propertyValue);
+        }
+        addToCriteria(lt);
         return this;
     }
 
@@ -739,7 +935,15 @@ public class HibernateCriteriaBuilder extends GroovyObjectSupport implements org
 
         propertyName = calculatePropertyName(propertyName);
         propertyValue = calculatePropertyValue(propertyValue);
-        addToCriteria(Restrictions.le(propertyName, propertyValue));
+        Criterion le;
+        if(propertyValue instanceof org.hibernate.criterion.DetachedCriteria) {
+            le = Property.forName(propertyName).le((org.hibernate.criterion.DetachedCriteria) propertyValue);
+        }
+        else {
+
+            le = Restrictions.le(propertyName, propertyValue);
+        }
+        addToCriteria(le);
         return this;
     }
 
@@ -820,11 +1024,18 @@ public class HibernateCriteriaBuilder extends GroovyObjectSupport implements org
 
         propertyName = calculatePropertyName(propertyName);
         propertyValue = calculatePropertyValue(propertyValue);
-        SimpleExpression eq =  Restrictions.eq(propertyName, propertyValue);
-        if (params != null) {
+        Criterion eq;
+        if(propertyValue instanceof org.hibernate.criterion.DetachedCriteria) {
+            eq = Property.forName(propertyName).eq((org.hibernate.criterion.DetachedCriteria) propertyValue);
+        }
+        else {
+
+            eq =  Restrictions.eq(propertyName, propertyValue);
+        }
+        if (params != null && (eq instanceof SimpleExpression)) {
             Object ignoreCase = params.get("ignoreCase");
             if (ignoreCase instanceof Boolean && (Boolean)ignoreCase) {
-                eq = eq.ignoreCase();
+                eq = ((SimpleExpression)eq).ignoreCase();
             }
         }
         addToCriteria(eq);
