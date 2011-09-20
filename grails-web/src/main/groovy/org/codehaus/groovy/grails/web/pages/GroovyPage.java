@@ -375,6 +375,9 @@ public abstract class GroovyPage extends Script {
                             ((GroovyPageTagBody) body).setPreferSubChunkWhenWritingToOtherBuffer(true);
                         }
 
+                        if (!(attrs instanceof GroovyPageAttributes)) {
+                            attrs = new GroovyPageAttributes(attrs);
+                        }        
                         switch (tag.getParameterTypes().length) {
                             case 1:
                                 tagresult = tag.call(new Object[]{attrs});
@@ -472,45 +475,6 @@ public abstract class GroovyPage extends Script {
 
     private GroovyObject getTagLib(String namespace, String tagName) {
         return lookupCachedTagLib(gspTagLibraryLookup, namespace, tagName);
-    }
-
-    /**
-     * Allows invoking of taglibs as method calls with simple bodies. The bodies should only contain text
-     *
-     * @param methodName The methodName of the tag to call or the methodName of a method on GroovPage
-     * @param args       The Arguments
-     * @return The result of the invocation
-     */
-    @SuppressWarnings("rawtypes")
-    @Override
-    public final Object invokeMethod(final String methodName, Object args) {
-        if (methodName.equals("invokeTag")) return super.invokeMethod(methodName, args);
-
-        Map attrs = null;
-        Object body = null;
-        GroovyObject tagLib = getTagLibForDefaultNamespace(methodName);
-        if (tagLib != null) {
-            // get attributes and body closure
-            if (args instanceof Object[]) {
-                Object[] argArray = (Object[]) args;
-                if (argArray.length > 0 && argArray[0] instanceof Map) {
-                    attrs = (Map) argArray[0];
-                }
-                if (argArray.length > 1) {
-                    body = argArray[1];
-                }
-            } else if (args instanceof Map) {
-                attrs = (Map) args;
-            }
-
-            if (attrs == null) {
-                attrs = new HashMap();
-            }
-
-            return captureTagOutput(gspTagLibraryLookup, DEFAULT_NAMESPACE, methodName, attrs, body, webRequest);
-        }
-
-        return super.invokeMethod(methodName, args);
     }
 
     @SuppressWarnings("rawtypes")
@@ -667,10 +631,5 @@ public abstract class GroovyPage extends Script {
     @SuppressWarnings("unchecked")
     public void changeItVariable(Object value) {
     	setVariableDirectly("it", value);
-    }
-
-    @SuppressWarnings("rawtypes")
-    public Map createGroovyPageAttributes(Map map) {
-        return new GroovyPageAttributes(map);
     }
 }

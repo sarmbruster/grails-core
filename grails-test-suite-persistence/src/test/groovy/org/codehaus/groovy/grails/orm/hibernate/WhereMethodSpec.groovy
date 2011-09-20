@@ -2,6 +2,7 @@ package org.codehaus.groovy.grails.orm.hibernate
 
 import grails.gorm.DetachedCriteria
 import spock.lang.Ignore
+import org.codehaus.groovy.control.MultipleCompilationErrorsException
 
 /**
  * Tests the where method in Grails
@@ -11,6 +12,176 @@ class WhereMethodSpec extends GormSpec{
     List getDomainClasses() {
         [Person, Pet]
     }
+
+    def "Test error when using unknown domain property of an association"() {
+        when:"A an unknown domain class property of an association is referenced"
+           queryReferencingNonExistentPropertyOfAssociation()
+        then:
+             MultipleCompilationErrorsException e = thrown()
+             e.message.contains 'Cannot query on property "doesntExist" - no such property on class org.codehaus.groovy.grails.orm.hibernate.Pet exists.'
+    }
+
+    def queryReferencingNonExistentPropertyOfAssociation() {
+        def gcl = new GroovyClassLoader(getClass().classLoader)
+        gcl.parseClass('''
+import  org.codehaus.groovy.grails.orm.hibernate.*
+import grails.gorm.*
+import grails.persistence.*
+import org.grails.datastore.gorm.query.transform.ApplyDetachedCriteriaTransform
+
+@ApplyDetachedCriteriaTransform
+@Entity
+class CallMe {
+
+    def badQuery() {
+        Person.where {
+            pets { doesntExist == "Blah" }
+        }
+    }
+}
+''')
+    }
+
+  def "Test function execution"() {
+      given:"A bunch of people with pets"
+          createPeopleWithPets()
+          def p = new Person(firstName: "Old", lastName: "Person").save()
+          new Pet(owner:p, birthDate: new Date() - 750, name:"Old Dog").save()
+
+
+
+      when:"A function is used on the property"
+        def query = Pet.where {
+              year(birthDate) == 2011
+        }
+        def results = query.list()
+
+      then:"check that the results are correct"
+        results.size() == 7
+
+      when:"A function is used on the property"
+        query = Pet.where {
+              year(birthDate) == 2009
+        }
+        results = query.list()
+
+      then:"check that the results are correct"
+        results.size() == 1
+        results[0].name == "Old Dog"
+
+     when:"A function is used on an association"
+        query = Person.where {
+              year(pets.birthDate) == 2009
+        }
+        results = query.list()
+
+      then:"The correct results are returned"
+         results.size() == 1
+         results[0].firstName == "Old"
+  }
+
+     def "Test static scoped where calls"() {
+          given:"A bunch of people"
+               createPeople()
+
+          when:"We use the static simpsons property "
+               def simpsons = Person.simpsons
+
+          then:"We get the right results back"
+              simpsons.count() == 4
+      }
+
+      def "Test findAll with pagination params"() {
+          given:"A bunch of people"
+               createPeople()
+
+          when:"We use findAll with pagination params"
+               def results = Person.findAll(sort:"firstName") {
+                   lastName == "Simpson"
+               }
+
+          then:"The correct results are returned"
+            results != null
+            results.size() == 4
+            results[0].firstName == "Bart"
+      }
+
+      def "Test try catch finally"() {
+          given:"A bunch of people"
+               createPeople()
+
+          when:"We use a try catch finally block in a where query"
+            def query = Person.where {
+                def personAge = "nine"
+                try {
+                   age ==  personAge.toInteger()
+                }
+                catch(e) {
+                   age == 7
+                }
+                finally {
+                    lastName == "Simpson"
+                }
+            }
+            Person result = query.find()
+
+          then:"The correct results are returned"
+             result != null
+             result.firstName == "Lisa"
+      }
+      def "Test while loop"() {
+          given:"A bunch of people"
+               createPeople()
+
+          when:"We use a while loop in a where query"
+            def query = Person.where {
+                 def list = ["Bart", "Simpson"]
+                 int total = 0
+                 while(total < list.size()) {
+                     def name = list[total++]
+                     if(name == "Bart")
+                        firstName == name
+                     else
+                        lastName == "Simpson"
+                 }
+            }
+            Person result = query.find()
+
+          then:"The correct results are returned"
+             result != null
+             result.firstName == "Bart"
+      }
+      def "Test for loop"() {
+          given:"A bunch of people"
+               createPeople()
+
+          when:"We use a for loop in a query"
+            def query = Person.where {
+                 for(name in ["Bart", "Simpson"]) {
+                     if(name == "Bart")
+                        firstName == name
+                     else
+                        lastName == "Simpson"
+                 }
+            }
+            Person result = query.find()
+
+          then:"The correct results are returned"
+             result != null
+             result.firstName == "Bart"
+      }
+      def "Test criteria on single ended association"() {
+          given:"people and pets"
+            createPeopleWithPets()
+
+          when:"We query the single-ended association owner of pet"
+            def query = Pet.where {
+                owner.firstName == "Joe" || owner.firstName == "Fred"
+            }
+
+          then:"the correct results are returned"
+            query.count() == 4
+      }
 
    def "Test switch statement"() {
       given: "A bunch of people"

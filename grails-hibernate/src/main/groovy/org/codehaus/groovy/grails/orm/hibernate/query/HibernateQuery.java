@@ -18,22 +18,30 @@ package org.codehaus.groovy.grails.orm.hibernate.query;
 import grails.orm.HibernateCriteriaBuilder;
 import grails.orm.RlikeExpression;
 
+import java.lang.reflect.Field;
 import java.util.*;
 
 import org.codehaus.groovy.grails.orm.hibernate.HibernateSession;
-import org.grails.datastore.gorm.query.criteria.DetachedAssociationCriteria;
 import org.grails.datastore.mapping.model.PersistentEntity;
 import org.grails.datastore.mapping.model.PersistentProperty;
 import org.grails.datastore.mapping.model.types.Association;
 import org.grails.datastore.mapping.query.AssociationQuery;
 import org.grails.datastore.mapping.query.Query;
 import org.grails.datastore.mapping.query.api.QueryableCriteria;
+import org.grails.datastore.mapping.query.criteria.FunctionCallingCriterion;
 import org.hibernate.Criteria;
-import org.hibernate.criterion.CriteriaSpecification;
-import org.hibernate.criterion.DetachedCriteria;
-import org.hibernate.criterion.Projections;
-import org.hibernate.criterion.Restrictions;
+import org.hibernate.SessionFactory;
+import org.hibernate.criterion.*;
+import org.hibernate.dialect.Dialect;
+import org.hibernate.dialect.function.SQLFunction;
+import org.hibernate.engine.SessionFactoryImplementor;
+import org.hibernate.persister.entity.PropertyMapping;
+import org.hibernate.type.BasicType;
+import org.hibernate.type.TypeResolver;
 import org.springframework.dao.InvalidDataAccessApiUsageException;
+import org.springframework.dao.InvalidDataAccessResourceUsageException;
+import org.springframework.orm.hibernate3.HibernateTemplate;
+import org.springframework.util.ReflectionUtils;
 
 /**
  * Bridges the Query API with the Hibernate Criteria API
@@ -45,18 +53,23 @@ import org.springframework.dao.InvalidDataAccessApiUsageException;
 public class HibernateQuery extends Query {
 
 
+
     @SuppressWarnings("hiding")
     private Criteria criteria;
     private HibernateQuery.HibernateProjectionList hibernateProjectionList = null;
     private String alias;
     private int aliasCount;
-    private Map<String, Criteria> createdAssociationPaths = new HashMap<String, Criteria> ();
+    private Map<String, CriteriaAndAlias> createdAssociationPaths = new HashMap<String, CriteriaAndAlias> ();
     private static final String ALIAS = "_alias";
+    private Field opField;
 
 
     public HibernateQuery(Criteria criteria, HibernateSession session, PersistentEntity entity) {
         super(session, entity);
         this.criteria = criteria;
+        this.opField = ReflectionUtils.findField(SimpleExpression.class, "op");
+        ReflectionUtils.makeAccessible(opField);
+
     }
 
     public HibernateQuery(Criteria subCriteria, HibernateSession session, PersistentEntity associatedEntity, String newAlias) {
@@ -91,7 +104,13 @@ public class HibernateQuery extends Query {
 
     @Override
     public void add(Criterion criterion) {
-        if(criterion instanceof PropertyCriterion) {
+        if(criterion instanceof FunctionCallingCriterion) {
+            org.hibernate.criterion.Criterion sqlRestriction = getRestrictionForFunctionCall((FunctionCallingCriterion) criterion, entity);
+            if(sqlRestriction != null) {
+                addToCriteria(sqlRestriction);
+            }
+        }
+        else if(criterion instanceof PropertyCriterion) {
             PropertyCriterion pc = (PropertyCriterion) criterion;
             if(pc.getValue() instanceof QueryableCriteria) {
                 DetachedCriteria hibernateDetachedCriteria = HibernateCriteriaBuilder.getHibernateDetachedCriteria((QueryableCriteria) pc.getValue());
@@ -102,6 +121,58 @@ public class HibernateQuery extends Query {
         if (hibernateCriterion != null) {
             addToCriteria(hibernateCriterion);
         }
+    }
+
+    org.hibernate.criterion.Criterion getRestrictionForFunctionCall(FunctionCallingCriterion criterion, PersistentEntity entity) {
+        org.hibernate.criterion.Criterion sqlRestriction;HibernateTemplate hibernateSession = (HibernateTemplate) this.session.getNativeInterface();
+
+        SessionFactory sessionFactory = hibernateSession.getSessionFactory();
+        String property = criterion.getProperty();
+        PropertyCriterion propertyCriterion = criterion.getPropertyCriterion();
+        PersistentProperty pp = entity.getPropertyByName(property);
+
+        if(pp == null) throw new InvalidDataAccessResourceUsageException("Cannot execute function defined in query ["+ criterion.getFunctionName()+"] on non-existent property ["+property+"] of ["+ this.entity.getJavaClass()+"]");
+
+        String functionName = criterion.getFunctionName();
+
+
+        SessionFactoryImplementor impl = (SessionFactoryImplementor) sessionFactory;
+        Dialect dialect = impl.getDialect();
+        SQLFunction sqlFunction = dialect.getFunctions().get(functionName);
+        if(sqlFunction != null) {
+            TypeResolver typeResolver = impl.getTypeResolver();
+            BasicType basic = typeResolver.basic(pp.getType().getName());
+            if(basic != null) {
+
+                final org.hibernate.criterion.Criterion hibernateCriterion = new HibernateCriterionAdapter(propertyCriterion, this.alias).toHibernateCriterion(this);
+                if(hibernateCriterion instanceof SimpleExpression) {
+                    SimpleExpression expr = (SimpleExpression) hibernateCriterion;
+                    Object op = ReflectionUtils.getField(opField, expr);
+                    PropertyMapping mapping = (PropertyMapping) impl.getEntityPersister(entity.getJavaClass().getName());
+                    String[] columns;
+                    if(this.alias != null)
+                        columns = mapping.toColumns(this.alias, property);
+                    else
+                        columns = mapping.toColumns(property);
+                    String root = sqlFunction.render(basic, Arrays.asList(columns), impl);
+                    Object value = propertyCriterion.getValue();
+                    if(value != null)
+                        sqlRestriction = Restrictions.sqlRestriction(root + op + "?", value, typeResolver.basic(value.getClass().getName()));
+                    else
+                        sqlRestriction = Restrictions.sqlRestriction(root + op + "?", value, basic );
+                }
+                else {
+                    throw new InvalidDataAccessResourceUsageException("Unsupported function ["+functionName+"] defined in query for property ["+property+"] with type ["+pp.getType()+"]");
+                }
+            }
+            else {
+                throw new InvalidDataAccessResourceUsageException("Unsupported function ["+functionName+"] defined in query for property ["+property+"] with type ["+pp.getType()+"]");
+            }
+        }
+        else {
+            throw new InvalidDataAccessResourceUsageException("Unsupported function defined in query ["+functionName+"]");
+        }
+        return sqlRestriction;
     }
 
     @Override
@@ -225,22 +296,23 @@ public class HibernateQuery extends Query {
         final PersistentProperty property = entity.getPropertyByName(calculatePropertyName(associationName, this.alias));
         if (property != null && (property instanceof Association)) {
             String alias = generateAlias(associationName);
-            Criteria subCriteria = getOrCreateAlias(associationName, alias);
+            CriteriaAndAlias subCriteria = getOrCreateAlias(associationName, alias);
 
             Association association = (Association) property;
-            return new HibernateAssociationQuery(subCriteria, (HibernateSession) getSession(), association.getAssociatedEntity(), association, alias);
+            return new HibernateAssociationQuery(subCriteria.criteria, (HibernateSession) getSession(), association.getAssociatedEntity(), association, alias);
         }
         throw new InvalidDataAccessApiUsageException("Cannot query association [" + calculatePropertyName(associationName, this.alias) + "] of entity [" + entity + "]. Property is not an association!");
     }
 
-    private Criteria getOrCreateAlias(String associationName, String alias) {
-        Criteria subCriteria;
+    private CriteriaAndAlias getOrCreateAlias(String associationName, String alias) {
+        CriteriaAndAlias subCriteria;
         if(createdAssociationPaths.containsKey(associationName)) {
             subCriteria = createdAssociationPaths.get(associationName);
         }
         else {
-            subCriteria = criteria.createAlias(associationName, alias);
-            createdAssociationPaths.put(associationName, subCriteria);
+            Criteria sc = criteria.createAlias(associationName, alias);
+            subCriteria = new CriteriaAndAlias(sc, alias);
+            createdAssociationPaths.put(associationName,subCriteria );
         }
         return subCriteria;
     }
@@ -317,8 +389,9 @@ public class HibernateQuery extends Query {
     String handleAssociationQuery(Association<?> association, List<Criterion> criteriaList) {
         String associationName = calculatePropertyName(association.getName(), this.alias);
         String newAlias = generateAlias(associationName);
-        getOrCreateAlias(associationName, newAlias);
-        return newAlias;
+        CriteriaAndAlias criteriaAndAlias = getOrCreateAlias(associationName, newAlias);
+
+        return criteriaAndAlias.alias;
     }
 
     private void addToCriteria(org.hibernate.criterion.Criterion criterion) {
@@ -357,10 +430,19 @@ public class HibernateQuery extends Query {
         @Override
         public Junction add(Criterion c) {
             if (c != null) {
-                HibernateCriterionAdapter adapter = new HibernateCriterionAdapter(c, this.alias);
-                org.hibernate.criterion.Criterion criterion = adapter.toHibernateCriterion(HibernateQuery.this);
-                if (criterion != null) {
-                    hibernateJunction.add(criterion);
+                if(c instanceof FunctionCallingCriterion) {
+                    org.hibernate.criterion.Criterion sqlRestriction = getRestrictionForFunctionCall((FunctionCallingCriterion) c, entity);
+                    if(sqlRestriction != null) {
+                        hibernateJunction.add(sqlRestriction);
+                    }
+                }
+                else {
+
+                    HibernateCriterionAdapter adapter = new HibernateCriterionAdapter(c, this.alias);
+                    org.hibernate.criterion.Criterion criterion = adapter.toHibernateCriterion(HibernateQuery.this);
+                    if (criterion != null) {
+                        hibernateJunction.add(criterion);
+                    }
                 }
             }
             return this;
@@ -614,6 +696,16 @@ public class HibernateQuery extends Query {
 
         public void setJunction(org.hibernate.criterion.Junction hibernateJunction) {
             this.hibernateJunction = hibernateJunction;
+        }
+    }
+
+    private class CriteriaAndAlias {
+        private Criteria criteria;
+        private String alias;
+
+        public CriteriaAndAlias(Criteria subCriteria, String alias) {
+            this.criteria = subCriteria;
+            this.alias = alias;
         }
     }
 }

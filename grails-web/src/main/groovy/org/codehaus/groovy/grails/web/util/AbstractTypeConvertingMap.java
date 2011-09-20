@@ -15,6 +15,8 @@
  */
 package org.codehaus.groovy.grails.web.util;
 
+import groovy.lang.GroovyObjectSupport;
+
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -43,7 +45,7 @@ import org.codehaus.groovy.runtime.DefaultGroovyMethods;
  * @since 1.2
  */
 @SuppressWarnings({ "rawtypes", "unchecked" })
-public abstract class AbstractTypeConvertingMap implements Map, Cloneable {
+public abstract class AbstractTypeConvertingMap extends GroovyObjectSupport implements Map, Cloneable {
     protected Map wrappedMap;
 
     public AbstractTypeConvertingMap() {
@@ -379,13 +381,47 @@ public abstract class AbstractTypeConvertingMap implements Map, Cloneable {
         return null;
     }
 
+    /**
+     * Obtains a date for the given parameter name
+     *
+     * @param name The name of the parameter
+     * @return The date object or null if it cannot be parsed
+     */
     public Date date(String name) {
         return getDate(name);
     }
 
+    /**
+     * Obtains a date for the given parameter name and format
+     *
+     * @param name The name of the parameter
+     * @param format The format
+     * @return The date object or null if it cannot be parsed
+     */
     public Date date(String name, String format) {
         return getDate(name, format);
     }
+
+
+    /**
+     * Obtains a date for the given parameter name and format
+     *
+     * @param name The name of the parameter
+     * @param formats The formats
+     * @return The date object or null if it cannot be parsed
+     */
+    public Date date(String name, Collection<String> formats) {
+        return getDate(name, formats);
+    }
+
+    private Date getDate(String name, Collection<String> formats) {
+        for (String format : formats) {
+            Date date = getDate(name,format);
+            if(date != null) return date;
+        }
+        return null;
+    }
+
 
     /**
      * Helper method for obtaining a list of values from parameter
