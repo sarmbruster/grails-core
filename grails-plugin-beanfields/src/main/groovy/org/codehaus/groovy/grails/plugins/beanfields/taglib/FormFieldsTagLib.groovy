@@ -132,14 +132,24 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 	private List<GrailsDomainClassProperty> resolvePersistentProperties(GrailsDomainClass domainClass) {
 		boolean hasHibernate = pluginManager?.hasGrailsPlugin('hibernate')
 		def properties = domainClass.persistentProperties as List
-        def controllerClass = findControllerClassForDomainClass(domainClass)
-        properties = properties.findAll { ! (it.name in (controllerClass.scaffold?.exclude)) }  // honor controller's scaffold.exclude
+
+        def blackList = ['dateCreated', 'lastUpdated']
+        try {
+            def domainClassExclusions = domainClass.clazz.scaffold?.exclude
+            if (domainClassExclusions) {
+                blackList.addAll(domainClassExclusions)
+            }
+        } catch (MissingPropertyException e) {
+            // MPE occurs if scaffold is not defined on domain class
+        }
+        properties = properties.findAll { ! (it.name in blackList) }
 
 		def comparator = hasHibernate ? new DomainClassPropertyComparator(domainClass) : new SimpleDomainClassPropertyComparator(domainClass)
 		Collections.sort(properties, comparator)
 		properties
 	}
 
+/*
     private Class findControllerClassForDomainClass(domainClass) {
         List controllerNames = grailsApplication.mainContext.controllerToScaffoldedDomainClassMap.findAll {
             it.value == domainClass
@@ -150,6 +160,7 @@ class FormFieldsTagLib implements GrailsApplicationAware {
         def retval = grailsApplication.getControllerClasses().find { it.logicalPropertyName == controllerNames[0]}
         retval.clazz
     }
+*/
 
 	private Map<String, Object> resolveProperty(bean, String property) {
 		def domainClass = resolveDomainClass(bean)
