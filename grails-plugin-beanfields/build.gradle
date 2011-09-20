@@ -10,7 +10,7 @@ dependencies {
     compile project(":grails-plugin-controllers")
     compile project(':grails-plugin-domain-class')
     compile project(":grails-plugin-gsp")
-    compile project(":grails-plugin-logging")
+    compile project(":grails-plugin-log4j")
     compile project(":grails-plugin-scaffolding")
 
 	testCompile('org.spockframework:spock-core:0.6-groovy-1.8-SNAPSHOT') {
