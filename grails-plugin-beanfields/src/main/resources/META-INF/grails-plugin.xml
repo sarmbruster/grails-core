@@ -1,0 +1,3 @@
+<plugin name='beanfields'>
+  <type>org.codehaus.groovy.grails.plugins.beanfields.BeanfieldsGrailsPlugin</type>
+</plugin>

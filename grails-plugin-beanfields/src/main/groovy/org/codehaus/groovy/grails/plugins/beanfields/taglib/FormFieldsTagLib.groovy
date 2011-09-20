@@ -21,6 +21,7 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 	GrailsConventionGroovyPageLocator groovyPageLocator
 	BeanPropertyAccessorFactory beanPropertyAccessorFactory
 	GrailsPluginManager pluginManager
+    Map controllerToScaffoldedDomainClassMap // being injected by scaffolding plugin
 
 	@PostConstruct
 	void initialize() {
@@ -101,13 +102,13 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 		// order of priority for template resolution
 		// 1: grails-app/views/controller/<property>/_field.gsp
 		// 2: grails-app/views/forms/<class>.<property>/_field.gsp
-		// 3: grails-app/views/forms/<type>/_field.gsp
+		// 3: grails-app/views/forms/<type>/_field.gsp, type is class' simpleName
 		// 4: grails-app/views/forms/default/_field.gsp
 		// TODO: implications for templates supplied by plugins
 		def templateResolveOrder = []
 		templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/", controllerName, propertyAccessor.propertyName, templateName)
 		templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/forms", propertyAccessor.beanClass.propertyName, propertyAccessor.propertyName, templateName)
-		templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/forms", propertyAccessor.type.name, templateName)
+		templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/forms", propertyAccessor.type.simpleName, templateName)
 		templateResolveOrder << "/forms/default/$templateName"
 
 		def template = templateResolveOrder.find {
@@ -121,23 +122,37 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 	}
 
 	private GrailsDomainClass resolveDomainClass(bean) {
-		resolveDomainClass(bean.getClass())
+        resolveDomainClass(bean.getClass())
 	}
 
 	private GrailsDomainClass resolveDomainClass(Class beanClass) {
-		grailsApplication.getArtefact("Domain", beanClass.simpleName)
+        grailsApplication.getDomainClass(beanClass.name)
 	}
 
 	private List<GrailsDomainClassProperty> resolvePersistentProperties(GrailsDomainClass domainClass) {
 		boolean hasHibernate = pluginManager?.hasGrailsPlugin('hibernate')
 		def properties = domainClass.persistentProperties as List
+        def controllerClass = findControllerClassForDomainClass(domainClass)
+        properties = properties.findAll { ! (it.name in (controllerClass.scaffold?.exclude)) }  // honor controller's scaffold.exclude
+
 		def comparator = hasHibernate ? new DomainClassPropertyComparator(domainClass) : new SimpleDomainClassPropertyComparator(domainClass)
 		Collections.sort(properties, comparator)
 		properties
 	}
 
+    private Class findControllerClassForDomainClass(domainClass) {
+        List controllerNames = grailsApplication.mainContext.controllerToScaffoldedDomainClassMap.findAll {
+            it.value == domainClass
+        }*.key
+        if ((controllerNames.size()==0) || (controllerNames.size > 1)) {
+            throw new IllegalArgumentException("found more than one controller scaffolding for $domainClass: $controllerNames")
+        }
+        def retval = grailsApplication.getControllerClasses().find { it.logicalPropertyName == controllerNames[0]}
+        retval.clazz
+    }
+
 	private Map<String, Object> resolveProperty(bean, String property) {
-		def domainClass = resolveDomainClass(bean.getClass())
+		def domainClass = resolveDomainClass(bean)
 		def path = property.tokenize(".")
 		resolvePropertyFromPathComponents(PropertyAccessorFactory.forBeanPropertyAccess(bean), domainClass, path)
 	}
