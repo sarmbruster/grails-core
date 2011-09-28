@@ -3,6 +3,7 @@ package org.codehaus.groovy.grails.plugins.beanfields.taglib
 import grails.artefact.Artefact
 import javax.annotation.PostConstruct
 import org.apache.commons.lang.StringUtils
+import org.apache.commons.lang.ClassUtils
 import org.codehaus.groovy.grails.io.support.GrailsResourceUtils
 import org.codehaus.groovy.grails.plugins.GrailsPluginManager
 import org.codehaus.groovy.grails.plugins.support.aware.GrailsApplicationAware
@@ -114,6 +115,10 @@ class FormFieldsTagLib implements GrailsApplicationAware {
 		templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/", controllerName, propertyAccessor.propertyName, templateName)
 		templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/forms", propertyAccessor.beanClass.propertyName, propertyAccessor.propertyName, templateName)
 		templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/forms", propertyAccessor.type.simpleName, templateName)
+        for (superclass in ClassUtils.getAllSuperclasses(propertyAccessor.type)) {
+            templateResolveOrder << GrailsResourceUtils.appendPiecesForUri("/forms", superclass.simpleName, templateName)
+
+        }
 		templateResolveOrder << "/forms/default/$templateName"
 
 		def template = templateResolveOrder.find {
