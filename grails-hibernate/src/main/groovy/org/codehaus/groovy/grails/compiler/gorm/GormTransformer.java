@@ -15,12 +15,12 @@
  */
 package org.codehaus.groovy.grails.compiler.gorm;
 
+import grails.persistence.Entity;
+
 import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
 
-import grails.persistence.Entity;
-import org.codehaus.groovy.ast.AnnotationNode;
 import org.codehaus.groovy.ast.ClassNode;
 import org.codehaus.groovy.ast.MethodNode;
 import org.codehaus.groovy.ast.expr.ArgumentListExpression;
@@ -105,9 +105,6 @@ public class GormTransformer extends AbstractGrailsArtefactTransformer {
 
     @Override
     protected MethodNode populateAutowiredApiLookupMethod(ClassNode implementationNode, String apiInstanceProperty, String methodName, BlockStatement methodBody) {
-        ArgumentListExpression arguments = new ArgumentListExpression();
-        arguments.addExpression(new ConstantExpression(MISSING_GORM_ERROR_MESSAGE));
-        methodBody.addStatement(new ThrowStatement(new ConstructorCallExpression(new ClassNode(IllegalStateException.class), arguments)));
         return new MethodNode(methodName, PUBLIC_STATIC_MODIFIER, implementationNode,ZERO_PARAMETERS,null,methodBody);
     }
 

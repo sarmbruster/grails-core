@@ -53,14 +53,12 @@ public class HibernateSession extends AbstractAttributeStoringSession {
     private boolean connected = true;
 
     public HibernateSession(HibernateDatastore hibernateDatastore, SessionFactory sessionFactory) {
-        this.hibernateTemplate = new HibernateTemplate(sessionFactory);
-        this.datastore = hibernateDatastore;
-        
-        if (datastore.getMappingContext() instanceof GrailsDomainClassMappingContext) {
-			this.hibernateTemplate.setCacheQueries(GrailsHibernateUtil.isCacheQueriesByDefault(((GrailsDomainClassMappingContext)datastore.getMappingContext()).getGrailsApplication()));
-        }
+        hibernateTemplate = new HibernateTemplate(sessionFactory);
+        datastore = hibernateDatastore;
 
-        
+        if (datastore.getMappingContext() instanceof GrailsDomainClassMappingContext) {
+            hibernateTemplate.setCacheQueries(GrailsHibernateUtil.isCacheQueriesByDefault(((GrailsDomainClassMappingContext)datastore.getMappingContext()).getGrailsApplication()));
+        }
     }
 
     @Override
@@ -70,8 +68,7 @@ public class HibernateSession extends AbstractAttributeStoringSession {
 
     @Override
     public void disconnect() {
-        super.disconnect();
-        connected = false;
+        connected = false; // don't actually do any disconnection here. This will be handled by OSVI
     }
 
     public Transaction beginTransaction() {
