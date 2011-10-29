@@ -35,6 +35,7 @@ import org.springframework.core.io.FileSystemResource
 import org.apache.ivy.plugins.resolver.FileSystemResolver
 import org.apache.ivy.plugins.latest.LatestTimeStrategy
 import org.apache.ivy.core.module.descriptor.Configuration
+import org.apache.ivy.plugins.resolver.ChainResolver
 
 /**
  * Manages the installation and uninstallation of plugins from a Grails project.
@@ -186,6 +187,23 @@ class PluginInstallEngine {
         }
     }
 
+
+    /**
+     * Installs a plugin from the given ZIP file. Differs from #installPlugin(zipFile) in that the plugin to be installed is assumed to already be resolved and
+     * hence not placed in the users local cache
+     *
+     * @param zipFile The plugin zip file
+     */
+    boolean installResolvedPlugin(File zipFile) {
+        if (!zipFile.exists()) {
+            errorHandler "Plugin zip not found at location: ${zipFile.absolutePath}"
+        }
+
+        def (name, version) = readMetadataFromZip(zipFile.absolutePath)
+
+        installPluginZipInternal name, version, zipFile, false, false
+    }
+
     /**
      * Installs a plugin from the given ZIP file
      *
@@ -201,12 +219,18 @@ class PluginInstallEngine {
         def (name, version) = readMetadataFromZip(zipFile.absolutePath)
 
         def parentDir = zipFile.parentFile
-        def dependencyManager = resolveEngine.createFreshDependencyManager()
+        final currentDependencyManager = resolveEngine.dependencyManager
+        IvyDependencyManager dependencyManager = new IvyDependencyManager(currentDependencyManager.applicationName, currentDependencyManager.applicationVersion, settings)
+        dependencyManager.chainResolver = new ChainResolver()
         dependencyManager.parseDependencies {
             log "warn"
+            useOrigin true
+            cacheDir currentDependencyManager.ivySettings.getDefaultCache().absolutePath
             repositories {
                 def pluginResolver = new FileSystemResolver(name: "$name plugin install resolver")
-                pluginResolver.addArtifactPattern("${parentDir.absolutePath}/[module]-[revision].[ext]")
+                final parentPath = parentDir.canonicalPath
+                pluginResolver.addArtifactPattern("${parentPath}/[module]-[revision].[ext]")
+                pluginResolver.addArtifactPattern("${parentPath}/grails-[module]-[revision].[ext]")
                 pluginResolver.settings = dependencyManager.ivySettings
                 pluginResolver.latestStrategy = new LatestTimeStrategy()
                 pluginResolver.changingPattern = ".*SNAPSHOT"
@@ -217,8 +241,22 @@ class PluginInstallEngine {
                 compile ":$name:$version"
             }
         }
-        dependencyManager.resolveDependencies()
-        installPluginZipInternal name, version, zipFile, globalInstall, overwrite
+        final report = dependencyManager.resolveDependencies()
+        if(!report.hasError()) {
+            final reports = report.allArtifactsReports
+            if(reports) {
+                final localFile = reports[0].localFile
+                if(version.endsWith("-SNAPSHOT")) {
+                    ant.mkdir(dir:"${settings.grailsWorkDir}/cached-snapshot-plugins")
+                    ant.copy(file:localFile, todir:"${settings.grailsWorkDir}/cached-snapshot-plugins")
+                }
+                installPluginZipInternal name, version, localFile, globalInstall, overwrite
+            }
+        }
+
+        else {
+            errorHandler "Could not resolve all dependencies for plugin $name"
+        }
     }
 
     /**
@@ -370,7 +408,7 @@ class PluginInstallEngine {
             return true
         }
 
-        if (!isInteractive || confirmInput("You currently already have a version of the plugin installed [$pluginDir.name]. Do you want to update to [$name-$version]? ")) {
+            if (!isInteractive || confirmInput("You currently already have a version of the plugin installed [${pluginDir.name}]. Do you want to update to [$name-$version]? ")) {
             ant.delete(dir: currentInstall.file)
             return false
         }
@@ -407,7 +445,10 @@ You cannot upgrade a plugin that is configured via BuildConfig.groovy, remove th
             for (dependencyConfiguration in dependencyConfigurationsToAdd) {
                 def resolveReport = dependencyManager.resolveDependencies(dependencyConfiguration)
                 if (resolveReport.hasError()) {
-                    errorHandler("Failed to install plugin [${pluginName}]. Plugin has missing JAR dependencies.")
+                    def runningUpgrade = Boolean.getBoolean('runningGrailsUpgrade')
+                    if(!runningUpgrade) {
+                        errorHandler("Failed to install plugin [${pluginName}]. Plugin has missing JAR dependencies.")
+                    }
                 }
                 else {
                     addJarsToRootLoader dependencyConfiguration, resolveReport.getArtifactsReports(null, false).localFile
@@ -452,39 +493,16 @@ You cannot upgrade a plugin that is configured via BuildConfig.groovy, remove th
                 }
             }
             else {
-                dependencies[depName] = depVersion
                 def depDirName = GrailsNameUtils.getScriptName(depName)
-                def manager = settings.dependencyManager
-
-                if (manager.isExcludedFromPlugin(pluginName, depDirName)) {
-                    dependencies.remove(depName)
-                }
-                else {
-                    def depPluginDir = pluginSettings.getPluginDirForName(depDirName)?.file
-                    if (!depPluginDir?.exists()) {
-                        eventHandler("StatusUpdate", "Plugin dependency [$depName] not found. Attempting to resolve...")
-                        // recursively install dependent plugins
-                        def upperVersion = GrailsPluginUtils.getUpperVersion(depVersion)
-                        def installVersion = upperVersion
-                        if (installVersion == '*') {
-                            installVersion = settings.defaultPluginSet.contains(depDirName) ? settings.getGrailsVersion() : null
-                        }
-
-                        // recurse
-                        installPlugin(depDirName, installVersion)
-
-                        dependencies.remove(depName)
-                    }
-                    else {
-                        def dependency = readPluginXmlMetadata(depDirName)
-                        def dependencyVersion = dependency.@version.toString()
-                        if (!GrailsPluginUtils.isValidVersion(dependencyVersion, depVersion)) {
-                            errorHandler("Plugin requires version [$depVersion] of plugin [$depName], but installed version is [${dependencyVersion}]. Please upgrade this plugin and try again.")
-                        }
-                        else {
-                            dependencies.remove(depName)
-                        }
-                    }
+                def declaredPluginZip = settings.pluginDependencies.find { it.name ==~ /$depDirName-\S+\.zip/}
+                if(declaredPluginZip == null) {
+                    errorHandler("""
+Plugin declares a runtime dependency on plugin [$depDirName: $depVersion] but does not define the plugin within its transitive metadata. Contact the plugin author to fix this problem or declare the plugin yourself inside BuildConfig.groovy. Example:
+...
+plugins {
+   compile ":$depDirName:$depVersion"
+}
+""")
                 }
             }
         }

@@ -10,8 +10,7 @@ class ${className}Controller {
 
     def list() {
         params.max = Math.min(params.max ? params.int('max') : 10, 100)
-        def ${propertyName}List = ${className}.list(params)
-        [${propertyName}List: ${propertyName}List, ${propertyName}Total: ${propertyName}List.totalCount]
+        [${propertyName}List: ${className}.list(params), ${propertyName}Total: ${className}.count()]
     }
 
     def create() {
@@ -26,14 +25,14 @@ class ${className}Controller {
         }
 
 		flash.message = message(code: 'default.created.message', args: [message(code: '${domainClass.propertyName}.label', default: '${className}'), ${propertyName}.id])
-        redirect action: "show", id: ${propertyName}.id
+        redirect(action: "show", id: ${propertyName}.id)
     }
 
     def show() {
         def ${propertyName} = ${className}.get(params.id)
         if (!${propertyName}) {
 			flash.message = message(code: 'default.not.found.message', args: [message(code: '${domainClass.propertyName}.label', default: '${className}'), params.id])
-            redirect action: "list"
+            redirect(action: "list")
             return
         }
 
@@ -78,25 +77,25 @@ class ${className}Controller {
         }
 
 		flash.message = message(code: 'default.updated.message', args: [message(code: '${domainClass.propertyName}.label', default: '${className}'), ${propertyName}.id])
-        redirect action: "show", id: ${propertyName}.id
+        redirect(action: "show", id: ${propertyName}.id)
     }
 
     def delete() {
         def ${propertyName} = ${className}.get(params.id)
         if (!${propertyName}) {
 			flash.message = message(code: 'default.not.found.message', args: [message(code: '${domainClass.propertyName}.label', default: '${className}'), params.id])
-            redirect action: "list"
+            redirect(action: "list")
             return
         }
 
         try {
             ${propertyName}.delete(flush: true)
 			flash.message = message(code: 'default.deleted.message', args: [message(code: '${domainClass.propertyName}.label', default: '${className}'), params.id])
-            redirect action: "list"
+            redirect(action: "list")
         }
         catch (DataIntegrityViolationException e) {
 			flash.message = message(code: 'default.not.deleted.message', args: [message(code: '${domainClass.propertyName}.label', default: '${className}'), params.id])
-            redirect action: "show", id: params.id
+            redirect(action: "show", id: params.id)
         }
     }
 }

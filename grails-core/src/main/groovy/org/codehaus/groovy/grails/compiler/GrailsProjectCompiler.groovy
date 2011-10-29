@@ -83,6 +83,16 @@ class GrailsProjectCompiler {
         this.pluginDescriptor = new File(basedir).listFiles().find { it.name.endsWith("GrailsPlugin.groovy") }
         this.config = config
         isPluginProject = pluginDescriptor != null
+
+        initializeSrcDirectories()
+        initializeAntClasspaths()
+
+
+        GrailsResourceLoader resourceLoader = new GrailsResourceLoader(pluginSettings.getArtefactResourcesForCurrentEnvironment())
+        GrailsResourceLoaderHolder.setResourceLoader(resourceLoader)
+    }
+
+    private initializeSrcDirectories() {
         srcDirectories = [ "${basedir}/grails-app/conf".toString(),
                            "${basedir}/grails-app/conf/spring".toString(),
                            "${srcdir}/groovy".toString(),
@@ -94,18 +104,12 @@ class GrailsProjectCompiler {
         if (grailsAppDirs != null) {
             for (dir in grailsAppDirs) {
                 if (dir != null) {
-                    if (!excludedPaths?.contains(dir.name) && dir.isDirectory()) {
+                    if (!excludedPaths?.contains(dir.name) && dir.isDirectory() && !DirectoryWatcher.SVN_DIR_NAME.equals(dir.name)) {
                         srcDirectories << "${dir}".toString()
                     }
                 }
             }
         }
-
-        initializeAntClasspaths()
-
-
-        GrailsResourceLoader resourceLoader = new GrailsResourceLoader(pluginSettings.getArtefactResourcesForCurrentEnvironment())
-        GrailsResourceLoaderHolder.setResourceLoader(resourceLoader)
     }
 
     AntBuilder getAnt() {
