@@ -50,9 +50,9 @@ import com.googlecode.concurrentlinkedhashmap.Weigher;
 public class DefaultUrlMappingsHolder implements UrlMappingsHolder {
 
     private static final transient Log LOG = LogFactory.getLog(DefaultUrlMappingsHolder.class);
-    private static final int DEFAULT_MAX_WEIGHTED_CAPACITY = 5000;
+    private static final long DEFAULT_MAX_WEIGHTED_CAPACITY = 5000;
 
-    private int maxWeightedCacheCapacity = DEFAULT_MAX_WEIGHTED_CAPACITY;
+    private long maxWeightedCacheCapacity = DEFAULT_MAX_WEIGHTED_CAPACITY;
     private Map<String, UrlMappingInfo> cachedMatches;
     private Map<String, List<UrlMappingInfo>> cachedListMatches;
     private enum CustomListWeigher implements Weigher<List<UrlMappingInfo>> {
@@ -77,7 +77,7 @@ public class DefaultUrlMappingsHolder implements UrlMappingsHolder {
     }};
     private UrlCreatorCache urlCreatorCache;
     // capacity of the UrlCreatoreCache is the estimated number of char's stored in cached objects
-    private int urlCreatorMaxWeightedCacheCapacity = 160000;
+    private long urlCreatorMaxWeightedCacheCapacity = 160000;
 
     public DefaultUrlMappingsHolder(List<UrlMapping> mappings) {
         this(mappings, null, false);
@@ -86,7 +86,7 @@ public class DefaultUrlMappingsHolder implements UrlMappingsHolder {
     public DefaultUrlMappingsHolder(List<UrlMapping> mappings, List excludePatterns) {
     	this(mappings, excludePatterns, false);
     }
-    
+
     public DefaultUrlMappingsHolder(List<UrlMapping> mappings, List excludePatterns, boolean doNotCallInit) {
         urlMappings = mappings;
         this.excludePatterns = excludePatterns;
@@ -94,7 +94,7 @@ public class DefaultUrlMappingsHolder implements UrlMappingsHolder {
         	initialize();
         }
     }
-    
+
     public void initialize() {
         sortMappings();
 
@@ -108,7 +108,7 @@ public class DefaultUrlMappingsHolder implements UrlMappingsHolder {
         if(urlCreatorMaxWeightedCacheCapacity > 0) {
         	urlCreatorCache = new UrlCreatorCache(urlCreatorMaxWeightedCacheCapacity);
         }
-        
+
         mappings = urlMappings.toArray(new UrlMapping[urlMappings.size()]);
 
         for (UrlMapping mapping : mappings) {
@@ -191,7 +191,7 @@ public class DefaultUrlMappingsHolder implements UrlMappingsHolder {
     @SuppressWarnings("unchecked")
     public UrlCreator getReverseMapping(final String controller, final String action, Map params) {
         if (params == null) params = Collections.EMPTY_MAP;
-        
+
         if(urlCreatorCache != null) {
 	        UrlCreatorCache.ReverseMappingKey key=urlCreatorCache.createKey(controller, action, params);
 	        UrlCreator creator=urlCreatorCache.lookup(key);
@@ -521,7 +521,7 @@ public class DefaultUrlMappingsHolder implements UrlMappingsHolder {
         }
     }
 
-	public void setMaxWeightedCacheCapacity(int maxWeightedCacheCapacity) {
+	public void setMaxWeightedCacheCapacity(long maxWeightedCacheCapacity) {
 		this.maxWeightedCacheCapacity = maxWeightedCacheCapacity;
 	}
 

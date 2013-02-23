@@ -13,13 +13,13 @@ import com.googlecode.concurrentlinkedhashmap.Weigher;
 
 /**
  * Implements caching layer for UrlCreator
- * 
+ *
  * The "weight" of the cache is the estimated number of characters all cache entries will consume in memory.
  * The estimate is not accurate. It's just used as a hard limit for limiting the cache size.
- * 
+ *
  * You can tune the maximum weight of the cache by setting "grails.urlcreator.cache.maxsize" in Config.groovy.
  * The default value is 160000 .
- *  
+ *
  * @author Lari Hotari
  * @since 1.3.5
  */
@@ -30,27 +30,27 @@ public class UrlCreatorCache {
     	public int weightOf(CachingUrlCreator cachingUrlCreator) {
     		return cachingUrlCreator.weight() + 1;
     	}
-    }	
-	
-	public UrlCreatorCache(int maxSize) {
+    }
+
+	public UrlCreatorCache(long maxSize) {
 		cacheMap = new ConcurrentLinkedHashMap.Builder<ReverseMappingKey, CachingUrlCreator>()
         .maximumWeightedCapacity(maxSize)
         .weigher(CachingUrlCreatorWeigher.INSTANCE)
         .build();
 	}
-	
+
 	public void clear() {
 		cacheMap.clear();
 	}
-	
+
 	public ReverseMappingKey createKey(String controller, String action, Map params) {
 		return new ReverseMappingKey(controller, action, params);
 	}
-	
+
 	public UrlCreator lookup(ReverseMappingKey key) {
 		return cacheMap.get(key);
 	}
-	
+
 	public UrlCreator putAndDecorate(ReverseMappingKey key, UrlCreator delegate) {
 		CachingUrlCreator cachingUrlCreator=new CachingUrlCreator(delegate, key.weight() * 2);
 		CachingUrlCreator prevCachingUrlCreator=cacheMap.putIfAbsent(key, cachingUrlCreator);
@@ -65,7 +65,7 @@ public class UrlCreatorCache {
 		private UrlCreator delegate;
 		private ConcurrentHashMap<UrlCreatorKey, String> cache=new ConcurrentHashMap<UrlCreatorKey, String>();
 		private final int weight;
-		
+
 		public CachingUrlCreator(UrlCreator delegate, int weight) {
 			this.delegate=delegate;
 			this.weight=weight;
@@ -120,7 +120,7 @@ public class UrlCreatorCache {
 		}
 
 		// don't cache these methods at all
-		
+
 		public String createURL(Map parameterValues, String encoding,
 				String fragment) {
 			return delegate.createURL(parameterValues, encoding, fragment);
@@ -130,13 +130,13 @@ public class UrlCreatorCache {
 			return delegate.createURL(parameterValues, encoding);
 		}
 	}
-	
+
 	public static class ReverseMappingKey {
 		protected final String controller;
 		protected final String action;
 		protected final String[] paramKeys;
 		protected final String[] paramValues;
-		
+
 		public ReverseMappingKey(String controller, String action, Map<Object,Object> params) {
 			this.controller=controller;
 			this.action=action;
@@ -177,7 +177,7 @@ public class UrlCreatorCache {
 			}
 			return weight;
 		}
-		
+
 		@Override
 		public int hashCode() {
 			final int prime = 31;
@@ -224,12 +224,12 @@ public class UrlCreatorCache {
 					+ ", paramValues=" + Arrays.toString(paramValues) + "]";
 		}
 	}
-	
+
 	private static class UrlCreatorKey extends ReverseMappingKey {
 		protected final String encoding;
 		protected final String fragment;
 		protected final int urlType;
-		
+
 		public UrlCreatorKey(String controller, String action,
 				Map<Object, Object> params, String encoding, String fragment, int urlType) {
 			super(controller, action, params);
